@@ -1,0 +1,49 @@
+# Flutter & Dart
+.dart_tool/
+.packages
+.pub-cache/
+.pub/
+build/
+*.iml
+*.ipr
+*.iws
+.idea/
+
+# Android
+**/local.properties
+**/captures/
+**/.gradle/
+**/key.properties
+*.jks
+*.keystore
+
+# iOS / macOS (when added)
+**/Pods/
+**/ios/.symlinks/
+**/ios/Flutter/Flutter.framework
+**/ios/Flutter/Flutter.podspec
+**/ios/ServiceDefinitions.json
+**/ios/Runner/GeneratedPluginRegistrant.*
+
+# Firebase — keep committed placeholders for clone-and-build; ignore real secrets if you copy them elsewhere
+# google-services.json
+# GoogleService-Info.plist
+
+# Cloud Functions (Node) — this was missing; `npm install`/`npm run build`
+# in functions/ creates node_modules/ and lib/ which should never be
+# committed (predeploy hook rebuilds them from source on every deploy).
+**/node_modules/
+functions/lib/
+*.tsbuildinfo
+
+# Owner analytics dashboard — config.js has a real Firebase web config +
+# the owner's real email in allowedEmails; config.sample.js is the template
+# that's meant to be committed instead.
+owner_analytics_dashboard/config.js
+
+# Cloudflare Wrangler cache — contains the linked Cloudflare account id/email.
+worker/.wrangler/
+
+# Misc
+.DS_Store
+*.log

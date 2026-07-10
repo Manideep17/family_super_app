@@ -1,0 +1,28 @@
+{
+  "name": "family-super-app-functions",
+  "version": "1.0.0",
+  "description": "Cloud Functions backend for Family Super App: push notifications, weekly champion, best moments, AI quizzes.",
+  "main": "lib/index.js",
+  "engines": {
+    "node": "20"
+  },
+  "scripts": {
+    "build": "tsc",
+    "build:watch": "tsc -w",
+    "serve": "npm run build && firebase emulators:start --only functions",
+    "shell": "npm run build && firebase functions:shell",
+    "start": "npm run shell",
+    "seed:demo": "node scripts/seed_demo_data.js",
+    "seed:dashboard-owner": "node scripts/seed_dashboard_owner_allowlist.js",
+    "deploy": "firebase deploy --only functions",
+    "logs": "firebase functions:log"
+  },
+  "dependencies": {
+    "firebase-admin": "^12.6.0",
+    "firebase-functions": "^6.0.1"
+  },
+  "devDependencies": {
+    "typescript": "^5.5.4"
+  },
+  "private": true
+}

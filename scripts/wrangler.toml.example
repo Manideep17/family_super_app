@@ -1,0 +1,9 @@
+name = "family-super-app-free-worker"
+main = "free_push_rollup_worker.js"
+compatibility_date = "2026-04-30"
+
+[triggers]
+crons = ["0 17 * * 0"]
+
+[observability.logs]
+enabled = true

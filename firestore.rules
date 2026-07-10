@@ -1,0 +1,571 @@
+rules_version = '2';
+
+// Family Super App — Firestore security rules (multi-tenant).
+//
+// Strategy:
+//   - `users/{uid}` is each person's global pointer (email + active familyId
+//     + fcmToken). Owner-only writes; readable by every member of any family
+//     they belong to (via member doc lookups) — kept simple here as
+//     "self-only read" since clients never need to read other users' global
+//     docs directly.
+//   - `families/{fid}` is the per-family document. A signed-in user may
+//     create one (owner becomes the first member). Reads / updates require
+//     a matching `families/{fid}/members/{auth.uid}` doc.
+//   - `families/{fid}/members/{uid}` is the per-family identity (display
+//     name, role, greeting). Self-writes only; reads gated to other family
+//     members.
+//   - All feature collections live under `families/{fid}/...` and require
+//     the caller to be a member of {fid}.
+//   - Cloud Functions use the admin SDK and bypass these rules where they
+//     write rollups (best moments / weekly champion / quizzes).
+
+service cloud.firestore {
+  match /databases/{database}/documents {
+
+    // Optional allowlist for owner analytics (see README in owner_analytics_dashboard).
+    match /_internal_rule_config/{docId} {
+      allow read, write: if false;
+    }
+
+    function isSignedIn() {
+      return request.auth != null;
+    }
+
+    function isMemberOf(fid) {
+      return isSignedIn()
+        && exists(/databases/$(database)/documents/families/$(fid)/members/$(request.auth.uid));
+    }
+
+    // Owner analytics dashboard (web): may read all family data when the signed-in
+    // user's email is listed in `_internal_rule_config/app_dashboard_owners` (emails
+    // array) or they have custom claim `appAnalyticsOwner: true`. The config doc has
+    // no client read/write — rules use get() which bypasses those rules for evaluation.
+    function dashboardOwnerConfigPath() {
+      return /databases/$(database)/documents/_internal_rule_config/app_dashboard_owners;
+    }
+
+    function isDashboardOwner() {
+      return isSignedIn()
+        && request.auth.token.email is string
+        && (
+          request.auth.token.appAnalyticsOwner == true
+          || (
+            exists(dashboardOwnerConfigPath())
+            && get(dashboardOwnerConfigPath()).data.emails is list
+            && request.auth.token.email in get(dashboardOwnerConfigPath()).data.emails
+          )
+        );
+    }
+
+    function canReadFamilyData(fid) {
+      return isMemberOf(fid) || isDashboardOwner();
+    }
+
+    // Same logic as `familyDocOwnerUid` inside `match /families/{fid}` — needed
+    // for collection-group reads on `reports` docs that store `familyId`.
+    function familyOwnerUidForFid(fid) {
+      let path = /databases/$(database)/documents/families/$(fid);
+      if (!exists(path)) {
+        return '';
+      }
+      let d = get(path).data;
+      return d.keys().hasAny(['ownerUid'])
+        && d.ownerUid is string
+        && d.ownerUid.size() > 0
+        ? d.ownerUid
+        : d.createdBy;
+    }
+
+    function validSizedString(v, min, max) {
+      return v is string && v.size() >= min && v.size() <= max;
+    }
+
+    // ---------- global users pointer ----------
+    match /users/{uid} {
+      // A user only reads their own pointer doc — push helpers run with
+      // admin SDK so don't need read access here.
+      allow read: if isSignedIn() && request.auth.uid == uid;
+      allow create, update: if isSignedIn() && request.auth.uid == uid;
+      allow delete: if false;
+    }
+
+    // ---------- families ----------
+    match /families/{fid} {
+      function priorFamilyOwnerId() {
+        return resource.data.keys().hasAny(['ownerUid'])
+          && resource.data.ownerUid is string
+          && resource.data.ownerUid.size() > 0
+          ? resource.data.ownerUid
+          : resource.data.createdBy;
+      }
+
+      function familyDocOwnerUid(fid) {
+        let path = /databases/$(database)/documents/families/$(fid);
+        if (!exists(path)) {
+          return '';
+        }
+        let d = get(path).data;
+        return d.keys().hasAny(['ownerUid'])
+          && d.ownerUid is string
+          && d.ownerUid.size() > 0
+          ? d.ownerUid
+          : d.createdBy;
+      }
+
+      function pollDocData(fid, pollId) {
+        return get(/databases/$(database)/documents/families/$(fid)/polls/$(pollId)).data;
+      }
+
+      function pollVoteAllowed(fid, pollId) {
+        let p = pollDocData(fid, pollId);
+        return p != null
+          && (!p.keys().hasAny(['closed']) || p.closed != true)
+          && (!p.keys().hasAny(['closesAt']) || request.time < p.closesAt);
+      }
+
+      function validPollPick(fid, pollId, pick) {
+        let p = pollDocData(fid, pollId);
+        return p != null
+          && (
+            (pick == 'a' && validSizedString(p.optionA, 1, 60))
+            || (pick == 'b' && validSizedString(p.optionB, 1, 60))
+            || (pick == 'c' && p.keys().hasAny(['optionC'])
+              && validSizedString(p.optionC, 1, 60))
+            || (pick == 'd' && p.keys().hasAny(['optionD'])
+              && validSizedString(p.optionD, 1, 60))
+          );
+      }
+
+      function intFieldOrZero(data, field) {
+        return data.keys().hasAny([field]) && data[field] is int ? data[field] : 0;
+      }
+
+      function statIncreaseOk(field, maxDelta) {
+        return intFieldOrZero(request.resource.data, field)
+          - intFieldOrZero(resource.data, field) <= maxDelta;
+      }
+
+      function statJumpOk(field, maxDown, maxUp) {
+        let d = intFieldOrZero(request.resource.data, field)
+          - intFieldOrZero(resource.data, field);
+        return d <= maxUp && d >= -maxDown;
+      }
+
+      // Future predictions: members patch only their own `votes.{uid}`; author resolves outcome.
+      function futurePredVoteUpdateOk(fid) {
+        return isMemberOf(fid)
+          && request.resource.data.authorUid == resource.data.authorUid
+          && request.resource.data.text == resource.data.text
+          && request.resource.data.authorName == resource.data.authorName
+          && request.resource.data.authorEmail == resource.data.authorEmail
+          && request.resource.data.targetAt == resource.data.targetAt
+          && request.resource.data.createdAt == resource.data.createdAt
+          && (
+            !resource.data.keys().hasAny(['resolved'])
+            || resource.data.resolved == false
+          )
+          && (
+            !request.resource.data.keys().hasAny(['resolved'])
+            || request.resource.data.resolved == false
+          )
+          && request.resource.data.votes is map
+          && request.resource.data.diff(resource.data).affectedKeys().hasOnly(['votes'])
+          && (
+            !resource.data.keys().hasAny(['votes'])
+            || !(resource.data.votes is map)
+            ? request.resource.data.votes.keys().hasOnly([request.auth.uid])
+            : request.resource.data.votes.diff(resource.data.votes).affectedKeys()
+              .hasOnly([request.auth.uid])
+          );
+      }
+
+      function futurePredResolveUpdateOk(fid) {
+        return isMemberOf(fid)
+          && resource.data.authorUid == request.auth.uid
+          && (
+            !resource.data.keys().hasAny(['resolved'])
+            || resource.data.resolved == false
+          )
+          && request.resource.data.resolved == true
+          && request.resource.data.outcome in ['yes', 'no']
+          && request.resource.data.authorUid == resource.data.authorUid
+          && request.resource.data.text == resource.data.text
+          && request.resource.data.authorName == resource.data.authorName
+          && request.resource.data.authorEmail == resource.data.authorEmail
+          && request.resource.data.targetAt == resource.data.targetAt
+          && request.resource.data.createdAt == resource.data.createdAt
+          && request.resource.data.votes == resource.data.votes
+          && request.resource.data.diff(resource.data).affectedKeys()
+            .hasOnly(['resolved', 'outcome', 'resolvedAt']);
+      }
+
+      // Reels: members patch only their own `reactions.{uid}` (emoji or remove).
+      function reelReactionUpdateOk(fid) {
+        return isMemberOf(fid)
+          && request.resource.data.authorUid == resource.data.authorUid
+          && request.resource.data.title == resource.data.title
+          && request.resource.data.theme == resource.data.theme
+          && request.resource.data.authorName == resource.data.authorName
+          && request.resource.data.authorEmail == resource.data.authorEmail
+          && request.resource.data.downloadUrl == resource.data.downloadUrl
+          && request.resource.data.storagePath == resource.data.storagePath
+          && request.resource.data.createdAt == resource.data.createdAt
+          && request.resource.data.reactions is map
+          && request.resource.data.diff(resource.data).affectedKeys().hasOnly(['reactions'])
+          && (
+            !resource.data.keys().hasAny(['reactions'])
+            || !(resource.data.reactions is map)
+            ? request.resource.data.reactions.keys().hasOnly([request.auth.uid])
+            : request.resource.data.reactions.diff(resource.data.reactions).affectedKeys()
+              .hasOnly([request.auth.uid])
+          );
+      }
+
+      // A signed-in user can create a family (becomes the first member in
+      // the same client transaction).
+      allow create: if isSignedIn()
+        && request.resource.data.createdBy == request.auth.uid
+        && request.resource.data.memberCount == 1
+        && request.resource.data.joinCode is string
+        && request.resource.data.joinCode.size() == 6
+        && (
+          !request.resource.data.keys().hasAny(['ownerUid'])
+          || request.resource.data.ownerUid == request.auth.uid
+        );
+
+      // Reads require sign-in so users can discover a family by joinCode.
+      // Feature data still stays private under member-guarded subcollections.
+      // Updates are limited to existing members. Updates from clients
+      // are restricted to memberCount adjustments; renaming the family is
+      // also OK from any member.
+      allow read: if isSignedIn();
+      allow update: if (
+          // Members may rename family or adjust count; pinned announcement is owner-only.
+          isMemberOf(fid)
+          && request.resource.data.diff(resource.data).affectedKeys()
+            .hasOnly(['memberCount', 'name', 'updatedAt', 'pinnedAnnouncement'])
+          && (
+            !request.resource.data.diff(resource.data).affectedKeys()
+              .hasAny(['pinnedAnnouncement'])
+            || (
+              priorFamilyOwnerId() == request.auth.uid
+              && request.resource.data.pinnedAnnouncement is string
+              && request.resource.data.pinnedAnnouncement.size() <= 200
+            )
+          )
+        ) || (
+          // Family owner may toggle optional daily digest (FCM).
+          isMemberOf(fid)
+          && priorFamilyOwnerId() == request.auth.uid
+          && request.resource.data.diff(resource.data).affectedKeys()
+            .hasOnly(['dailyDigestOptIn', 'updatedAt'])
+          && request.resource.data.dailyDigestOptIn is bool
+        ) || (
+          isMemberOf(fid)
+          && priorFamilyOwnerId() == request.auth.uid
+          && request.resource.data.diff(resource.data).affectedKeys()
+            .hasOnly(['ownerUid', 'updatedAt'])
+          && request.resource.data.ownerUid is string
+          && request.resource.data.ownerUid != request.auth.uid
+          && exists(/databases/$(database)/documents/families/$(fid)/members/$(request.resource.data.ownerUid))
+        ) || (
+          // New joiner path: allow atomic +1 memberCount during join transaction.
+          isSignedIn()
+          && request.resource.data.diff(resource.data).affectedKeys()
+            .hasOnly(['memberCount', 'updatedAt'])
+          && request.resource.data.memberCount == resource.data.memberCount + 1
+        );
+      allow delete: if false;
+
+      // Anyone signed in can run a `where('joinCode', '==', X)` query.
+      // Rules permit only the get inside this match.
+
+      match /members/{uid} {
+        // A new member can write their own member doc when joining the
+        // family. They must reference themselves and the doc must contain
+        // expected fields.
+        allow create: if isSignedIn()
+          && request.auth.uid == uid
+          && request.resource.data.uid == uid;
+
+        // Reads / updates / deletes require membership (or dashboard owner read).
+        allow read: if canReadFamilyData(fid);
+        allow update: if isMemberOf(fid) && request.auth.uid == uid;
+        allow delete: if isSignedIn() && request.auth.uid == uid;
+      }
+
+      // Per-family chat. Reactions and reads can update the meta doc.
+      match /chats/{chatId} {
+        allow read: if canReadFamilyData(fid);
+        allow write: if isMemberOf(fid);
+
+        match /messages/{messageId} {
+          allow read: if canReadFamilyData(fid);
+          allow create: if isMemberOf(fid)
+            && request.resource.data.authorUid == request.auth.uid
+            && validSizedString(request.resource.data.text, 1, 4000)
+            && validSizedString(request.resource.data.authorName, 1, 80);
+          allow update: if isMemberOf(fid)
+            && request.resource.data.authorUid == resource.data.authorUid;
+          allow delete: if isMemberOf(fid)
+            && resource.data.authorUid == request.auth.uid;
+
+          match /reports/{reporterUid} {
+            allow create: if isMemberOf(fid)
+              && request.auth.uid == reporterUid
+              && request.resource.data.reporterUid == request.auth.uid
+              && request.resource.data.familyId == fid
+              && request.resource.data.kind == 'chat'
+              && request.resource.data.targetAuthorUid is string
+              && request.resource.data.messageAuthorUid is string
+              && request.resource.data.messageAuthorUid
+                == request.resource.data.targetAuthorUid
+              && request.resource.data.preview is string
+              && request.resource.data.preview.size() <= 500;
+            allow read: if isMemberOf(fid)
+              && (
+                request.auth.uid == reporterUid
+                || familyDocOwnerUid(fid) == request.auth.uid
+              );
+            allow update, delete: if false;
+          }
+        }
+      }
+
+      // Diary / stories — comments + reactions ride along.
+      match /stories/{storyId} {
+        allow read: if canReadFamilyData(fid);
+        allow create: if isMemberOf(fid)
+          && request.resource.data.authorUid == request.auth.uid
+          && validSizedString(request.resource.data.title, 1, 140)
+          && validSizedString(request.resource.data.body, 1, 10000)
+          && validSizedString(request.resource.data.authorName, 1, 80);
+        allow update: if isMemberOf(fid)
+          && request.resource.data.authorUid == resource.data.authorUid;
+        allow delete: if isMemberOf(fid)
+          && resource.data.authorUid == request.auth.uid;
+
+        match /comments/{commentId} {
+          allow read: if canReadFamilyData(fid);
+          allow create: if isMemberOf(fid)
+            && request.resource.data.authorUid == request.auth.uid;
+          allow update, delete: if isMemberOf(fid)
+            && resource.data.authorUid == request.auth.uid;
+        }
+
+        match /reports/{reporterUid} {
+          allow create: if isMemberOf(fid)
+            && request.auth.uid == reporterUid
+            && request.resource.data.reporterUid == request.auth.uid
+            && request.resource.data.familyId == fid
+            && request.resource.data.kind == 'diary'
+            && request.resource.data.targetAuthorUid is string
+            && request.resource.data.storyAuthorUid is string
+            && request.resource.data.storyAuthorUid
+              == request.resource.data.targetAuthorUid
+            && request.resource.data.preview is string
+            && request.resource.data.preview.size() <= 500;
+          allow read: if isMemberOf(fid)
+            && (
+              request.auth.uid == reporterUid
+              || familyDocOwnerUid(fid) == request.auth.uid
+            );
+          allow update, delete: if false;
+        }
+      }
+
+      // Tasks: any member can create, either side may transition state.
+      match /tasks/{taskId} {
+        allow read: if canReadFamilyData(fid);
+        allow create: if isMemberOf(fid)
+          && request.resource.data.assignerUid == request.auth.uid
+          && validSizedString(request.resource.data.title, 1, 180)
+          && validSizedString(request.resource.data.description, 0, 4000)
+          && request.resource.data.rewardPoints is int
+          && request.resource.data.rewardPoints >= 0
+          && request.resource.data.rewardPoints <= 1000;
+        allow update: if isMemberOf(fid)
+          && request.resource.data.assignerUid == resource.data.assignerUid
+          && request.resource.data.assigneeUid == resource.data.assigneeUid
+          && (
+            resource.data.assigneeUid == request.auth.uid
+            || resource.data.assignerUid == request.auth.uid
+            || resource.data.assigneeEmail
+                == get(/databases/$(database)/documents/families/$(fid)/members/$(request.auth.uid)).data.email
+            || resource.data.assignerEmail
+                == get(/databases/$(database)/documents/families/$(fid)/members/$(request.auth.uid)).data.email
+          );
+        allow delete: if isMemberOf(fid)
+          && resource.data.assignerUid == request.auth.uid;
+      }
+
+      // Calendar.
+      match /calendar_events/{eventId} {
+        allow read: if canReadFamilyData(fid);
+        allow create: if isMemberOf(fid)
+          && request.resource.data.creatorUid == request.auth.uid;
+        allow update, delete: if isMemberOf(fid)
+          && resource.data.creatorUid == request.auth.uid;
+      }
+
+      // Vault.
+      match /vault_items/{itemId} {
+        allow read: if canReadFamilyData(fid);
+        allow create: if isMemberOf(fid)
+          && request.resource.data.uploaderUid == request.auth.uid;
+        allow update, delete: if isMemberOf(fid)
+          && resource.data.uploaderUid == request.auth.uid;
+      }
+
+      // Member stats — owner self-writes; functions also write via admin SDK.
+      match /member_stats/{uid} {
+        allow read: if canReadFamilyData(fid);
+        allow create: if isMemberOf(fid)
+          && request.auth.uid == uid
+          && (!request.resource.data.keys().hasAny(['points'])
+            || (request.resource.data.points is int
+              && request.resource.data.points <= 2000))
+          && (!request.resource.data.keys().hasAny(['famCoins'])
+            || (request.resource.data.famCoins is int
+              && request.resource.data.famCoins <= 2000));
+        allow update: if isMemberOf(fid)
+          && request.auth.uid == uid
+          && statIncreaseOk('points', 250)
+          && statJumpOk('famCoins', 200, 500)
+          && statIncreaseOk('storiesCreated', 20)
+          && statIncreaseOk('gamesWon', 20);
+        allow delete: if false;
+      }
+
+      // Function-only writes (weekly champion).
+      match /gamification/{doc} {
+        allow read: if canReadFamilyData(fid);
+        allow write: if false;
+      }
+
+      match /best_moments/{id} {
+        allow read: if canReadFamilyData(fid);
+        allow write: if false;
+      }
+
+      match /ai_quizzes/{id} {
+        allow read: if canReadFamilyData(fid);
+        allow write: if false;
+      }
+
+      // General predictions.
+      match /predictions/{id} {
+        allow read: if canReadFamilyData(fid);
+        allow create: if isMemberOf(fid)
+          && request.resource.data.predictorUid == request.auth.uid;
+        allow update, delete: if isMemberOf(fid)
+          && resource.data.predictorUid == request.auth.uid;
+      }
+
+      // Future predictions game.
+      match /future_predictions/{id} {
+        allow read: if canReadFamilyData(fid);
+        allow create: if isMemberOf(fid)
+          && request.resource.data.authorUid == request.auth.uid;
+        allow update: if futurePredVoteUpdateOk(fid)
+          || futurePredResolveUpdateOk(fid);
+        allow delete: if isMemberOf(fid)
+          && resource.data.authorUid == request.auth.uid;
+      }
+
+      // Mini reel battles.
+      match /reels/{id} {
+        allow read: if canReadFamilyData(fid);
+        allow create: if isMemberOf(fid)
+          && request.resource.data.authorUid == request.auth.uid;
+        allow update: if reelReactionUpdateOk(fid);
+        allow delete: if isMemberOf(fid)
+          && resource.data.authorUid == request.auth.uid;
+      }
+
+      // Creative challenge submissions.
+      match /creative_submissions/{id} {
+        allow read: if canReadFamilyData(fid);
+        allow create: if isMemberOf(fid)
+          && request.resource.data.authorUid == request.auth.uid;
+        allow update, delete: if isMemberOf(fid)
+          && resource.data.authorUid == request.auth.uid;
+      }
+
+      // Time travel game responses.
+      match /time_travel_entries/{id} {
+        allow read: if canReadFamilyData(fid);
+        allow create: if isMemberOf(fid)
+          && request.resource.data.authorUid == request.auth.uid;
+        allow update, delete: if isMemberOf(fid)
+          && resource.data.authorUid == request.auth.uid;
+      }
+
+      // Quick family polls (2–4 options + per-member response).
+      match /polls/{pollId} {
+        allow read: if canReadFamilyData(fid);
+        allow create: if isMemberOf(fid)
+          && request.resource.data.createdBy == request.auth.uid
+          && validSizedString(request.resource.data.question, 1, 120)
+          && validSizedString(request.resource.data.optionA, 1, 60)
+          && validSizedString(request.resource.data.optionB, 1, 60)
+          && (!request.resource.data.keys().hasAny(['optionC'])
+            || validSizedString(request.resource.data.optionC, 1, 60))
+          && (!request.resource.data.keys().hasAny(['optionD'])
+            || validSizedString(request.resource.data.optionD, 1, 60))
+          && (!request.resource.data.keys().hasAny(['closesAt'])
+            || request.resource.data.closesAt is timestamp)
+          && (!request.resource.data.keys().hasAny(['anonymous'])
+            || request.resource.data.anonymous is bool)
+          && (!request.resource.data.keys().hasAny(['closed'])
+            || request.resource.data.closed == false);
+        allow delete: if isMemberOf(fid)
+          && resource.data.createdBy == request.auth.uid;
+        allow update: if isMemberOf(fid)
+          && resource.data.createdBy == request.auth.uid
+          && request.resource.data.diff(resource.data).affectedKeys()
+            .hasOnly(['closed', 'updatedAt'])
+          && request.resource.data.closed == true;
+
+        match /responses/{uid} {
+          allow read: if canReadFamilyData(fid);
+          allow create: if isMemberOf(fid)
+            && request.auth.uid == uid
+            && pollVoteAllowed(fid, pollId)
+            && request.resource.data.pick is string
+            && validPollPick(
+              fid,
+              pollId,
+              request.resource.data.pick,
+            );
+          allow update: if isMemberOf(fid)
+            && request.auth.uid == uid
+            && pollVoteAllowed(fid, pollId)
+            && request.resource.data.pick is string
+            && validPollPick(
+              fid,
+              pollId,
+              request.resource.data.pick,
+            );
+          allow delete: if isMemberOf(fid) && request.auth.uid == uid;
+        }
+      }
+    }
+
+    // Enables `collectionGroup('reports')` for the family owner inbox. Only
+    // docs with `familyId` (new writes) match this rule; legacy reports
+    // still rely on path-scoped reads above.
+    match /{document=**}/reports/{reporterUid} {
+      allow read: if isSignedIn()
+        && resource.data.keys().hasAny(['familyId'])
+        && resource.data.familyId is string
+        && resource.data.familyId.size() > 0
+        && isMemberOf(resource.data.familyId)
+        && (
+          request.auth.uid == reporterUid
+          || familyOwnerUidForFid(resource.data.familyId) == request.auth.uid
+        );
+      allow create, update, delete: if false;
+    }
+  }
+}

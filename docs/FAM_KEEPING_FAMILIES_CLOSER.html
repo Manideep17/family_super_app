@@ -1,0 +1,301 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>FAM — Keeping families closer</title>
+  <style>
+    :root {
+      --ink: #0f0a1a;
+      --plum: #1a0f2e;
+      --violet: #6d4cff;
+      --coral: #ff8a65;
+      --mint: #2dd4bf;
+      --cream: #faf7ff;
+      --muted: rgba(250, 247, 255, 0.72);
+    }
+
+    * {
+      box-sizing: border-box;
+      margin: 0;
+      padding: 0;
+    }
+
+    body {
+      min-height: 100vh;
+      font-family: "Segoe UI", system-ui, -apple-system, sans-serif;
+      color: var(--cream);
+      background: var(--plum);
+      background-image:
+        radial-gradient(ellipse 120% 80% at 50% -20%, rgba(109, 76, 255, 0.45), transparent),
+        radial-gradient(ellipse 80% 50% at 100% 50%, rgba(45, 212, 191, 0.12), transparent),
+        radial-gradient(ellipse 60% 40% at 0% 80%, rgba(255, 138, 101, 0.1), transparent);
+      line-height: 1.45;
+    }
+
+    .sheet {
+      max-width: 56rem;
+      margin: 0 auto;
+      padding: 3rem 1.75rem 4rem;
+    }
+
+    @media print {
+      body {
+        background: var(--plum);
+        -webkit-print-color-adjust: exact;
+        print-color-adjust: exact;
+      }
+      .sheet {
+        padding: 2rem;
+      }
+      .no-print {
+        display: none !important;
+      }
+    }
+
+    .frame {
+      border: 2px solid rgba(250, 247, 255, 0.2);
+      border-radius: 2px;
+      padding: 2.5rem 2rem;
+      position: relative;
+      background: rgba(15, 10, 26, 0.35);
+      backdrop-filter: blur(8px);
+    }
+
+    @media (min-width: 640px) {
+      .frame {
+        padding: 3rem 3.25rem;
+      }
+    }
+
+    .corner {
+      position: absolute;
+      width: 1.25rem;
+      height: 1.25rem;
+      border-color: var(--coral);
+      border-style: solid;
+      opacity: 0.85;
+    }
+    .corner-tl { top: 10px; left: 10px; border-width: 2px 0 0 2px; }
+    .corner-tr { top: 10px; right: 10px; border-width: 2px 2px 0 0; }
+    .corner-bl { bottom: 10px; left: 10px; border-width: 0 0 2px 2px; }
+    .corner-br { bottom: 10px; right: 10px; border-width: 0 2px 2px 0; }
+
+    .eyebrow {
+      font-size: 0.7rem;
+      letter-spacing: 0.35em;
+      text-transform: uppercase;
+      color: var(--mint);
+      font-weight: 600;
+      margin-bottom: 1rem;
+    }
+
+    h1 {
+      font-family: Georgia, "Times New Roman", serif;
+      font-weight: 700;
+      font-size: clamp(2.5rem, 8vw, 4.25rem);
+      line-height: 1.05;
+      letter-spacing: -0.03em;
+      margin-bottom: 0.5rem;
+      background: linear-gradient(135deg, #fff 0%, rgba(200, 190, 255, 0.95) 50%, var(--mint) 100%);
+      -webkit-background-clip: text;
+      background-clip: text;
+      color: transparent;
+    }
+
+    .tagline {
+      font-size: clamp(1.15rem, 3vw, 1.55rem);
+      font-weight: 500;
+      color: var(--muted);
+      max-width: 36ch;
+      margin-bottom: 2.5rem;
+      border-left: 3px solid var(--violet);
+      padding-left: 1.25rem;
+    }
+
+    .lede {
+      font-size: 1.05rem;
+      color: rgba(250, 247, 255, 0.88);
+      max-width: 52ch;
+      margin-bottom: 2.75rem;
+    }
+
+    .lede strong {
+      color: #fff;
+      font-weight: 600;
+    }
+
+    h2 {
+      font-size: 0.72rem;
+      letter-spacing: 0.28em;
+      text-transform: uppercase;
+      color: var(--coral);
+      margin-bottom: 1.25rem;
+      font-weight: 700;
+    }
+
+    .grid {
+      display: grid;
+      gap: 1rem;
+      margin-bottom: 2.75rem;
+    }
+
+    @media (min-width: 720px) {
+      .grid {
+        grid-template-columns: repeat(3, 1fr);
+        gap: 1.25rem;
+      }
+    }
+
+    .tile {
+      background: rgba(109, 76, 255, 0.12);
+      border: 1px solid rgba(250, 247, 255, 0.12);
+      border-radius: 16px;
+      padding: 1.35rem 1.25rem;
+      transition: border-color 0.2s, background 0.2s;
+    }
+
+    .tile:hover {
+      border-color: rgba(109, 76, 255, 0.45);
+      background: rgba(109, 76, 255, 0.18);
+    }
+
+    .tile h3 {
+      font-size: 1.05rem;
+      font-weight: 700;
+      color: #fff;
+      margin-bottom: 0.45rem;
+      display: flex;
+      align-items: center;
+      gap: 0.5rem;
+    }
+
+    .tile h3 span.icon {
+      font-size: 1.25rem;
+      filter: grayscale(0.2);
+    }
+
+    .tile p {
+      font-size: 0.9rem;
+      color: var(--muted);
+      line-height: 1.5;
+    }
+
+    blockquote {
+      font-family: Georgia, serif;
+      font-size: clamp(1.2rem, 2.8vw, 1.45rem);
+      font-style: italic;
+      color: rgba(255, 255, 255, 0.92);
+      text-align: center;
+      padding: 2rem 1rem;
+      margin: 0 0 2.5rem;
+      position: relative;
+    }
+
+    blockquote::before {
+      content: "“";
+      display: block;
+      font-size: 3rem;
+      line-height: 0.5;
+      color: var(--violet);
+      opacity: 0.6;
+      margin-bottom: 0.5rem;
+    }
+
+    .closing {
+      text-align: center;
+      padding-top: 0.5rem;
+      border-top: 1px solid rgba(250, 247, 255, 0.12);
+    }
+
+    .closing .mark {
+      font-size: 2rem;
+      font-weight: 900;
+      letter-spacing: 0.2em;
+      color: #fff;
+      margin-bottom: 0.35rem;
+    }
+
+    .closing p {
+      font-size: 0.88rem;
+      color: var(--muted);
+      letter-spacing: 0.06em;
+    }
+
+    .print-hint {
+      margin-top: 2rem;
+      text-align: center;
+      font-size: 0.75rem;
+      color: rgba(250, 247, 255, 0.45);
+    }
+
+    .print-hint code {
+      background: rgba(255, 255, 255, 0.08);
+      padding: 0.15rem 0.4rem;
+      border-radius: 4px;
+      font-size: 0.7rem;
+    }
+  </style>
+</head>
+<body>
+  <div class="sheet">
+    <div class="frame">
+      <span class="corner corner-tl" aria-hidden="true"></span>
+      <span class="corner corner-tr" aria-hidden="true"></span>
+      <span class="corner corner-bl" aria-hidden="true"></span>
+      <span class="corner corner-br" aria-hidden="true"></span>
+
+      <p class="eyebrow">One private space</p>
+      <h1>Keeping families closer</h1>
+      <p class="tagline">Life gets loud. Distance creeps in. FAM is where your people slow down together.</p>
+
+      <p class="lede">
+        Schedules splinter across schools, jobs, and time zones. Group chats scatter across apps.
+        <strong>FAM</strong> brings the everyday rhythm of your family—conversation, plans, chores, memories—into
+        <strong>one calm, intentional home</strong> built for trust, not noise.
+      </p>
+
+      <h2>What “closer” feels like</h2>
+      <div class="grid">
+        <article class="tile">
+          <h3><span class="icon" aria-hidden="true">◇</span> Show up daily</h3>
+          <p>A living chat and home base so nobody has to hunt through threads to feel included.</p>
+        </article>
+        <article class="tile">
+          <h3><span class="icon" aria-hidden="true">◎</span> Remember together</h3>
+          <p>Diary and timeline turn small moments into shared story—so the year doesn’t vanish in a blur.</p>
+        </article>
+        <article class="tile">
+          <h3><span class="icon" aria-hidden="true">✦</span> Move as a team</h3>
+          <p>Tasks and calendar align who does what, without nagging becoming the main way you talk.</p>
+        </article>
+        <article class="tile">
+          <h3><span class="icon" aria-hidden="true">◇</span> Play &amp; predict</h3>
+          <p>Light games and predictions add laughter—the glue that turns a household into a crew.</p>
+        </article>
+        <article class="tile">
+          <h3><span class="icon" aria-hidden="true">◎</span> Keep what matters safe</h3>
+          <p>Vault and profile give each person identity and a place for what you don’t post publicly.</p>
+        </article>
+        <article class="tile">
+          <h3><span class="icon" aria-hidden="true">✦</span> Invite, don’t broadcast</h3>
+          <p>Your family joins by code—private by design, not an open social network.</p>
+        </article>
+      </div>
+
+      <blockquote>
+        Closeness isn’t constant contact. It’s knowing you have a shared corner of the world—where the little things still count.
+      </blockquote>
+
+      <div class="closing">
+        <div class="mark">FAM</div>
+        <p>Your family. One app. Closer than yesterday.</p>
+      </div>
+    </div>
+
+    <p class="print-hint no-print">
+      Tip: Print this page (<code>Ctrl+P</code> / <code>Cmd+P</code>) and choose “Save as PDF” for a shareable poster.
+    </p>
+  </div>
+</body>
+</html>

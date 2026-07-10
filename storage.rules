@@ -1,0 +1,77 @@
+rules_version = '2';
+
+// Family Super App — Cloud Storage rules (multi-tenant).
+//
+// Every uploaded asset lives under `families/{fid}/{kind}/{uid}/...`.
+// Access checks read the corresponding `families/{fid}/members/{auth.uid}`
+// doc in Firestore — only members of `{fid}` may read; only the owning uid
+// inside that family may write.
+
+service firebase.storage {
+  match /b/{bucket}/o {
+
+    function isSignedIn() {
+      return request.auth != null;
+    }
+
+    function isMemberOf(fid) {
+      return isSignedIn() && firestore.exists(
+        /databases/(default)/documents/families/$(fid)/members/$(request.auth.uid)
+      );
+    }
+
+    // Limits: 25 MB images / audio, 200 MB video.
+    function imageOk() {
+      return request.resource.contentType.matches('image/.*')
+        && request.resource.size < 25 * 1024 * 1024;
+    }
+    function videoOk() {
+      return request.resource.contentType.matches('video/.*')
+        && request.resource.size < 200 * 1024 * 1024;
+    }
+    function audioOk() {
+      return request.resource.contentType.matches('audio/.*')
+        && request.resource.size < 25 * 1024 * 1024;
+    }
+
+    // ---------- per-family asset paths ----------
+    match /families/{fid}/avatars/{uid}/{allPaths=**} {
+      allow read: if isMemberOf(fid);
+      allow write: if isMemberOf(fid) && request.auth.uid == uid && imageOk();
+    }
+
+    match /families/{fid}/vault/{uid}/{allPaths=**} {
+      allow read: if isMemberOf(fid);
+      allow write: if isMemberOf(fid)
+        && request.auth.uid == uid
+        && (imageOk() || videoOk());
+    }
+
+    match /families/{fid}/stories/{uid}/{allPaths=**} {
+      allow read: if isMemberOf(fid);
+      allow write: if isMemberOf(fid)
+        && request.auth.uid == uid
+        && (imageOk() || videoOk());
+    }
+
+    match /families/{fid}/chat_voice/{uid}/{allPaths=**} {
+      allow read: if isMemberOf(fid);
+      allow write: if isMemberOf(fid) && request.auth.uid == uid && audioOk();
+    }
+
+    match /families/{fid}/reels/{uid}/{allPaths=**} {
+      allow read: if isMemberOf(fid);
+      allow write: if isMemberOf(fid) && request.auth.uid == uid && videoOk();
+    }
+
+    match /families/{fid}/puzzle/{uid}/{allPaths=**} {
+      allow read: if isMemberOf(fid);
+      allow write: if isMemberOf(fid) && request.auth.uid == uid && imageOk();
+    }
+
+    // Default-deny.
+    match /{path=**} {
+      allow read, write: if false;
+    }
+  }
+}

@@ -1,0 +1,59 @@
+# Deploys Cloud Functions + Firestore rules/indexes + Storage rules to your
+# live Firebase project. Manual only (workflow_dispatch) — this touches
+# production data, so it never runs automatically on push.
+#
+# One-time setup before the first run (all free — a service account key
+# costs nothing, this just lets GitHub authenticate as your project):
+#   1. Google Cloud Console -> IAM & Admin -> Service Accounts -> Create.
+#      Grant it "Firebase Admin" (simplest) or, for a tighter scope,
+#      "Cloud Functions Admin" + "Firebase Rules Admin" + "Service Account
+#      User" + "Cloud Datastore Index Admin".
+#   2. Open the new service account -> Keys -> Add key -> Create new key ->
+#      JSON. This downloads a .json file — never commit it.
+#   3. GitHub repo -> Settings -> Secrets and variables -> Actions ->
+#      New repository secret -> name it FIREBASE_SERVICE_ACCOUNT -> paste
+#      the entire JSON file contents as the value.
+#   4. Actions tab -> "Deploy Firebase Backend" -> Run workflow.
+#
+# This is the step that turns on real push notifications, task-approval
+# points, weekly rollups, and the memories quiz — see
+# docs/AI_LOGIC_SETUP.md and docs/REVAMP_ROADMAP.md for context. After a
+# successful run, rebuild the app with --dart-define=FUNCTIONS_ENABLED=true
+# (build-apk.yml already has a checkbox for this).
+name: Deploy Firebase Backend
+
+on:
+  workflow_dispatch:
+    inputs:
+      targets:
+        description: "Comma-separated firebase deploy --only targets"
+        required: false
+        type: string
+        default: "functions,firestore:rules,firestore:indexes,storage"
+
+jobs:
+  deploy:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: "20"
+
+      - name: Install functions dependencies
+        working-directory: functions
+        run: npm ci
+
+      - name: Authenticate to Google Cloud
+        uses: google-github-actions/auth@v2
+        with:
+          credentials_json: ${{ secrets.FIREBASE_SERVICE_ACCOUNT }}
+
+      - name: Deploy
+        run: |
+          npm install -g firebase-tools
+          firebase deploy \
+            --only "${{ inputs.targets }}" \
+            --project family-super-app-3bf1c \
+            --non-interactive

@@ -1,0 +1,58 @@
+# Builds a release APK when you push to main/master, or when you click "Run workflow".
+# After it finishes: Actions → this workflow → latest run → Artifacts → app-release-apk (zip with APK).
+# Manual runs: optional booleans add common AppFlags (--dart-define).
+name: Build APK
+
+on:
+  workflow_dispatch:
+    inputs:
+      functions_enabled:
+        description: Pass FUNCTIONS_ENABLED=true (Function-backed UI surfaces)
+        required: false
+        type: boolean
+        default: false
+      media_uploads_enabled:
+        description: Pass MEDIA_UPLOADS_ENABLED=true (diary/avatar/vault/reel uploads — still needs Cloudinary if used)
+        required: false
+        type: boolean
+        default: false
+      ai_digest_enabled:
+        description: Pass AI_DIGEST_ENABLED=true (Gemini weekly digest — needs AI Logic set up first, see docs/AI_LOGIC_SETUP.md)
+        required: false
+        type: boolean
+        default: false
+  push:
+    branches: [main, master]
+
+jobs:
+  android:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: subosito/flutter-action@v2
+        with:
+          channel: stable
+          cache: true
+
+      - name: Dependencies & APK
+        run: |
+          flutter pub get
+          FLAGS=""
+          if [ "${{ github.event_name }}" = "workflow_dispatch" ]; then
+            if [ "${{ inputs.functions_enabled }}" = "true" ]; then
+              FLAGS="$FLAGS --dart-define=FUNCTIONS_ENABLED=true"
+            fi
+            if [ "${{ inputs.media_uploads_enabled }}" = "true" ]; then
+              FLAGS="$FLAGS --dart-define=MEDIA_UPLOADS_ENABLED=true"
+            fi
+            if [ "${{ inputs.ai_digest_enabled }}" = "true" ]; then
+              FLAGS="$FLAGS --dart-define=AI_DIGEST_ENABLED=true"
+            fi
+          fi
+          flutter build apk --release ${FLAGS}
+
+      - uses: actions/upload-artifact@v4
+        with:
+          name: app-release-apk
+          path: build/app/outputs/flutter-apk/app-release.apk

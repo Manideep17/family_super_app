@@ -1,0 +1,5 @@
+## Copy to `local.properties` (do not commit `local.properties`).
+## Flutter writes this when you run `flutter pub get` from the project root.
+#
+# flutter.sdk=/Users/you/development/flutter
+# sdk.dir=/Users/you/Library/Android/sdk

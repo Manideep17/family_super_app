@@ -1,0 +1,78 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Owner Analytics Dashboard</title>
+    <link rel="stylesheet" href="./styles.css" />
+  </head>
+  <body>
+    <header class="topbar">
+      <div>
+        <h1>Owner Analytics Dashboard</h1>
+        <p class="muted">Private view for family app analytics</p>
+      </div>
+      <div class="actions">
+        <button id="refreshBtn" disabled>Refresh</button>
+        <button id="signInBtn">Sign in</button>
+        <button id="signOutBtn" class="hidden">Sign out</button>
+      </div>
+    </header>
+
+    <main class="container">
+      <section id="statusCard" class="card status-card">
+        <h2>Status</h2>
+        <p id="statusText" class="muted">Sign in to load analytics.</p>
+        <p class="scope-hint muted">
+          <label class="inline-check">
+            <input type="checkbox" id="appWideToggle" checked />
+            <strong>Default:</strong> app-wide totals (all families). Uncheck to
+            show only the family linked to your account in Firestore
+            <code>users/{uid}.familyId</code>.
+          </label>
+        </p>
+      </section>
+
+      <section id="summaryGrid" class="grid hidden">
+        <article class="card metric"><h3>Scope</h3><p id="familyName">-</p></article>
+        <article class="card metric"><h3>Members</h3><p id="memberCount">0</p></article>
+        <article class="card metric"><h3>Stories</h3><p id="storyCount">0</p></article>
+        <article class="card metric"><h3>Tasks</h3><p id="taskCount">0</p></article>
+        <article class="card metric"><h3>Events</h3><p id="eventCount">0</p></article>
+        <article class="card metric"><h3>Vault Items</h3><p id="vaultCount">0</p></article>
+        <article class="card metric"><h3>Predictions</h3><p id="predictionCount">0</p></article>
+        <article class="card metric"><h3>Games (reels + creative + time travel)</h3><p id="gamesCount">0</p></article>
+      </section>
+
+      <section id="detailsGrid" class="grid-2 hidden">
+        <article class="card">
+          <h2>Task Status</h2>
+          <ul id="taskStatusList" class="kv-list"></ul>
+        </article>
+
+        <article class="card">
+          <h2>Mood Split</h2>
+          <ul id="moodList" class="kv-list"></ul>
+        </article>
+
+        <article class="card">
+          <h2>Top Contributors</h2>
+          <table class="data-table">
+            <thead>
+              <tr><th>Name</th><th>Points</th><th>Stories</th><th>Games</th></tr>
+            </thead>
+            <tbody id="contributorsBody"></tbody>
+          </table>
+        </article>
+
+        <article class="card">
+          <h2>Recent Activity</h2>
+          <ul id="recentList" class="activity-list"></ul>
+        </article>
+      </section>
+    </main>
+
+    <script src="./config.js"></script>
+    <script type="module" src="./app.js"></script>
+  </body>
+</html>

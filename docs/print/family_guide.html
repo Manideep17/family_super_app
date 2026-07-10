@@ -1,0 +1,354 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>FAM — guide for families and testers</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+  <link href="https://fonts.googleapis.com/css2?family=Fraunces:ital,opsz,wght@0,9..144,400;0,9..144,600;0,9..144,700;1,9..144,400&family=DM+Sans:ital,opsz,wght@0,9..40,400;0,9..40,500;0,9..40,600;0,9..40,700;1,9..40,400&display=swap" rel="stylesheet" />
+  <style>
+    :root {
+      --ink: #1c1917;
+      --muted: #57534e;
+      --accent: #0d9488;
+      --accent-soft: #ccfbf1;
+      --cream: #fffbeb;
+      --rule: #e7e5e4;
+      --card: #ffffff;
+    }
+
+    * { box-sizing: border-box; }
+
+    @page {
+      size: letter;
+      margin: 16mm 18mm 18mm 18mm;
+    }
+
+    body {
+      margin: 0;
+      padding: 0;
+      font-family: "DM Sans", system-ui, sans-serif;
+      font-size: 10.5pt;
+      line-height: 1.55;
+      color: var(--ink);
+      background: var(--cream);
+      -webkit-print-color-adjust: exact;
+      print-color-adjust: exact;
+    }
+
+    .wrap {
+      max-width: 42rem;
+      margin: 0 auto;
+      padding: 2.5rem 1.75rem 3rem;
+    }
+
+    @media print {
+      body { background: #fff; }
+      .wrap { padding: 0; max-width: none; }
+      .no-print { display: none !important; }
+      a[href^="http"]::after { content: " (" attr(href) ")"; font-size: 8pt; color: var(--muted); }
+    }
+
+    header.cover {
+      text-align: center;
+      padding: 2.5rem 1rem 2.75rem;
+      margin: -2.5rem -1.75rem 2.5rem;
+      background: linear-gradient(145deg, #0f766e 0%, #115e59 45%, #134e4a 100%);
+      color: #f0fdfa;
+      border-radius: 0 0 1.5rem 1.5rem;
+    }
+
+    @media print {
+      header.cover {
+        margin: -1rem -1rem 2rem;
+        border-radius: 0;
+        padding: 2rem 1rem;
+      }
+    }
+
+    header.cover .mark {
+      font-family: "Fraunces", Georgia, serif;
+      font-weight: 700;
+      font-size: 2.75rem;
+      letter-spacing: 0.35em;
+      margin: 0 0 0.35em;
+      text-indent: 0.35em;
+    }
+
+    header.cover h1 {
+      font-family: "Fraunces", Georgia, serif;
+      font-weight: 600;
+      font-size: 1.35rem;
+      font-weight: 500;
+      margin: 0;
+      opacity: 0.95;
+      letter-spacing: 0.02em;
+    }
+
+    header.cover .tag {
+      margin-top: 1rem;
+      font-size: 0.85rem;
+      opacity: 0.88;
+      max-width: 28rem;
+      margin-left: auto;
+      margin-right: auto;
+      line-height: 1.5;
+    }
+
+    p.lead {
+      font-size: 1.05rem;
+      color: var(--muted);
+      margin: 0 0 2rem;
+    }
+
+    h2 {
+      font-family: "Fraunces", Georgia, serif;
+      font-size: 1.35rem;
+      font-weight: 600;
+      color: #134e4a;
+      margin: 2.25rem 0 0.75rem;
+      padding-bottom: 0.35rem;
+      border-bottom: 2px solid var(--accent-soft);
+      break-after: avoid;
+    }
+
+    h2:first-of-type { margin-top: 0; }
+
+    h3 {
+      font-size: 1rem;
+      font-weight: 600;
+      color: var(--ink);
+      margin: 1.35rem 0 0.5rem;
+      break-after: avoid;
+    }
+
+    p { margin: 0 0 0.85rem; }
+
+    ul, ol {
+      margin: 0 0 1rem;
+      padding-left: 1.25rem;
+    }
+
+    li { margin-bottom: 0.35rem; }
+
+    strong { font-weight: 600; color: #0f172a; }
+
+    hr {
+      border: none;
+      height: 1px;
+      background: linear-gradient(90deg, transparent, var(--rule), transparent);
+      margin: 2rem 0;
+    }
+
+    table {
+      width: 100%;
+      border-collapse: collapse;
+      margin: 0.75rem 0 1.25rem;
+      font-size: 9.75pt;
+      break-inside: avoid;
+    }
+
+    th, td {
+      border: 1px solid var(--rule);
+      padding: 0.55rem 0.65rem;
+      text-align: left;
+      vertical-align: top;
+    }
+
+    th {
+      background: var(--accent-soft);
+      font-weight: 600;
+      color: #115e59;
+    }
+
+    tr:nth-child(even) td { background: #fafaf9; }
+
+    .callout {
+      background: var(--card);
+      border-left: 4px solid var(--accent);
+      padding: 0.85rem 1rem;
+      margin: 1rem 0;
+      border-radius: 0 0.5rem 0.5rem 0;
+      box-shadow: 0 1px 3px rgba(0,0,0,0.06);
+    }
+
+    .checklist {
+      background: #f5f5f4;
+      border-radius: 0.65rem;
+      padding: 1rem 1rem 1rem 1.5rem;
+      margin: 1rem 0;
+    }
+
+    .checklist ol { margin: 0; }
+    .checklist li { margin-bottom: 0.5rem; }
+
+    footer.meta {
+      margin-top: 2.5rem;
+      padding-top: 1.25rem;
+      border-top: 1px solid var(--rule);
+      font-size: 9pt;
+      color: var(--muted);
+    }
+
+    a { color: #0f766e; text-decoration: none; }
+    a:hover { text-decoration: underline; }
+
+    @media print {
+      a { color: var(--ink); }
+    }
+  </style>
+</head>
+<body>
+  <div class="wrap">
+    <header class="cover">
+      <p class="mark">FAM</p>
+      <h1>Guide for families &amp; testers</h1>
+      <p class="tag">For people using the app — not developers. What FAM is, how to start, and what you can do today.</p>
+    </header>
+
+    <p class="lead">This booklet covers install paths, accounts, your private family space, where to find features, what’s new, privacy in plain language, and a short tester checklist.</p>
+
+    <h2>What is FAM?</h2>
+    <p><strong>FAM</strong> is a private app for <strong>one family at a time</strong>. Each family has its own space: shared chat, a diary of memories, tasks, a calendar, photos in a vault, light games, and a home dashboard. Only people who join <strong>your</strong> family with your <strong>invite code</strong> can see that family’s content.</p>
+
+    <h2>How to install the app</h2>
+    <ul>
+      <li><strong>Android (beta):</strong> You may receive an <strong>APK</strong> file from whoever runs the project. Install it, allow installation from that source if Android asks, then open <strong>FAM</strong>. Your host can share the separate <em>Beta tester guide</em> for step-by-step install tips.</li>
+      <li><strong>iOS:</strong> Usually through <strong>Xcode</strong> (developer install) or <strong>TestFlight</strong> once the app is on App Store Connect. Your host will tell you which path they use.</li>
+    </ul>
+    <p>If anything fails at install time, contact the person who shared the build with you.</p>
+
+    <h2>Accounts: sign in, sign up, and recovery</h2>
+    <p>You can use FAM in either of these ways:</p>
+    <ol>
+      <li><strong>Email and password</strong> — On the first screen, use the segments at the top: <strong>Sign in</strong> or <strong>Create account</strong>. <strong>Create account:</strong> enter email and password (at least 6 characters), then create your account. <strong>Sign in:</strong> same screen, choose <strong>Sign in</strong>, then enter your email and password.</li>
+      <li><strong>Google</strong> — Tap <strong>Continue with Google</strong> and pick the Google account you want to use.</li>
+    </ol>
+    <p><strong>Forgot your password?</strong> Choose <strong>Sign in</strong>, enter your <strong>email</strong>, then tap <strong>Forgot password?</strong> You’ll get a reset link if that email is registered.</p>
+    <p><strong>Email verification</strong> — If you signed up with <strong>email and password</strong>, you may see a reminder to <strong>verify your email</strong> (before or after you join a family). Check your inbox for Firebase’s link, or tap <strong>Resend verification email</strong> if you need a new one. Google sign-in does not use this flow.</p>
+
+    <h2>Families: create, join, and invite</h2>
+    <p>After you sign in:</p>
+    <ul>
+      <li><strong>Create a family</strong> — You pick a family name; the app gives you a <strong>6-character invite code</strong>. Share that code only with people you trust.</li>
+      <li><strong>Join a family</strong> — Enter the code someone gave you, then set how you want your name to appear.</li>
+    </ul>
+    <p>Each account is in <strong>one family at a time</strong> in normal use. Family data (chat, diary, tasks, etc.) is <strong>not</strong> visible to other families.</p>
+    <p><strong>Leaving a family</strong> is available from <strong>My family</strong> in the menu (see below). Read any warning the app shows before you confirm.</p>
+
+    <h2>Where things live in the app</h2>
+    <h3>Bottom tabs (main bar)</h3>
+    <table>
+      <thead>
+        <tr><th>Tab</th><th>What it’s for</th></tr>
+      </thead>
+      <tbody>
+        <tr><td><strong>Home</strong></td><td>Your dashboard: greeting, streaks, quick actions, recent memories, tasks that need you, upcoming events, and optional <strong>family announcement</strong> (see below).</td></tr>
+        <tr><td><strong>Chat</strong></td><td>Family group chat.</td></tr>
+        <tr><td><strong>Diary</strong></td><td>Family memories (stories); you can add new ones from here or from Home.</td></tr>
+        <tr><td><strong>Tasks</strong></td><td>Chores and to-dos between family members, with points when completed as designed.</td></tr>
+      </tbody>
+    </table>
+
+    <h3>Menu (three lines / “hamburger”)</h3>
+    <p>Open the <strong>menu</strong> from the top-left on the main screens. From there you can reach things like:</p>
+    <ul>
+      <li><strong>My profile</strong> — Photo (when uploads are enabled), display name, greeting, <strong>FAM coins</strong>, and optional <strong>family title</strong> (see below).</li>
+      <li><strong>My family</strong> — Invite code, member list, <strong>home announcement</strong> (whoever edits it), and leave family.</li>
+      <li><strong>Family polls</strong> — Quick votes (two options) for the whole family.</li>
+      <li><strong>Send feedback</strong> — Opens your <strong>email app</strong> with a subject line so you can tell the host what worked or what broke.</li>
+      <li><strong>Timeline, calendar, vault, leaderboard, predictions, games, insights</strong> — Explore memories over time, events, shared media, points, fun guesses, mini-games, and mood-style summaries (depending on what your family uses).</li>
+    </ul>
+
+    <h2>Features you can use today (overview)</h2>
+    <p>These are the main areas families use; not every household will touch all of them.</p>
+    <ul>
+      <li><strong>Chat</strong> — Text messages for everyone in the family.</li>
+      <li><strong>Diary</strong> — Longer “memory” posts with mood and optional photos; readable in the diary feed and timeline.</li>
+      <li><strong>Tasks</strong> — Someone assigns a task, someone else completes it; approvals and <strong>reward points</strong> can apply.</li>
+      <li><strong>Calendar</strong> — Shared events.</li>
+      <li><strong>Vault</strong> — Shared media when the build allows uploads.</li>
+      <li><strong>Gamification</strong> — <strong>Points</strong> for activity, a <strong>leaderboard</strong>, and <strong>badges</strong> for milestones (for example stories written or games won).</li>
+      <li><strong>Predictions</strong> — Light “guess what happens” style fun for the family.</li>
+      <li><strong>Games hub</strong> — Mini-games (for example memory and family trivia-style games); some entries may be marked as coming later.</li>
+      <li><strong>Home dashboard</strong> — Pull-to-refresh, quick links to common actions, and summaries like “this week” and “needs your attention.”</li>
+    </ul>
+    <p>Exact labels may change slightly as the app is polished, but the ideas stay the same.</p>
+
+    <h2>What’s new or improved (recent updates)</h2>
+    <p>These items were added to make the app clearer and more “family-shaped” for daily use:</p>
+
+    <h3>Clearer sign-in and account help</h3>
+    <ul>
+      <li><strong>Sign in</strong> and <strong>Create account</strong> are obvious choices on one screen (you don’t have to hunt for “new user” in small text).</li>
+      <li><strong>Forgot password</strong> works from the sign-in flow (email/password accounts).</li>
+      <li><strong>Resend verification email</strong> appears when your email/password account is not yet verified.</li>
+    </ul>
+
+    <h3>Family announcement on Home</h3>
+    <ul>
+      <li>Any family member can set a <strong>short announcement</strong> that appears on the <strong>Home</strong> tab for everyone (for example “Movie night Saturday” or “Grandma visiting”).</li>
+      <li>Edit it under <strong>Menu → My family → Home announcement</strong> (tap to edit, save when done). There is a sensible length limit so it stays easy to read.</li>
+    </ul>
+
+    <h3>Family polls</h3>
+    <ul>
+      <li>Under <strong>Menu → Family polls</strong> (and a <strong>Polls</strong> shortcut on Home), you can start a <strong>simple two-option vote</strong> (for example “Pizza or tacos?”).</li>
+      <li>Everyone in the family can tap <strong>A</strong> or <strong>B</strong>. Counts update for the family.</li>
+      <li>The person who created a poll can <strong>delete</strong> it when it’s no longer needed.</li>
+    </ul>
+
+    <h3>FAM coins and family titles</h3>
+    <ul>
+      <li><strong>FAM coins</strong> are a light, in-app “thank you” balance (not real money). You earn coins from things like tasks, diary posts, and games, depending on how your family uses the app.</li>
+      <li>In <strong>My profile</strong>, you’ll see your <strong>FAM coins</strong> and can pick an optional <strong>family title</strong> from a preset list (for example “Snack captain” or “Story keeper”). Titles show on the <strong>leaderboard</strong> so everyone can see the fun labels.</li>
+      <li>Extra <strong>badges</strong> can appear when you hit certain milestones (for example coin milestones on top of the existing point badges).</li>
+    </ul>
+
+    <h3>Send feedback</h3>
+    <ul>
+      <li><strong>Menu → Send feedback</strong> opens your mail app with a ready-made subject so you can describe a problem or idea. You choose who to send it to (often the person who gave you the app).</li>
+    </ul>
+
+    <h2>Privacy (plain language)</h2>
+    <div class="callout">
+      <ul style="margin:0;">
+        <li>Your <strong>family’s</strong> chats, diary, tasks, and other family data are meant to be visible <strong>only to members of that family</strong>, not to strangers or other families.</li>
+        <li>The <strong>invite code</strong> is like a key: anyone you give it to can try to join—only share it with people you trust.</li>
+        <li>If you use <strong>Google</strong> sign-in, Google’s normal account rules apply in addition to FAM.</li>
+      </ul>
+    </div>
+    <p>For technical security rules, the people who operate Firebase for this project rely on the configuration described in the project’s developer docs.</p>
+
+    <h2>What’s still “beta” or evolving</h2>
+    <p>It’s normal for early versions to be rough. In particular:</p>
+    <ul>
+      <li><strong>Push notifications</strong> may depend on device settings, battery savers, and whether the host has set up server-side automation. You might not get reminders for everything yet.</li>
+      <li><strong>AI-heavy</strong> features (automatic weekly summaries, smart coaching) are <strong>not</strong> promised in the current open-source scope; the app focuses on things families do together manually.</li>
+      <li><strong>Stricter anti-cheat</strong> for points is still a product/engineering topic; treat points and coins as <strong>fun</strong>, not financial value.</li>
+    </ul>
+    <p>If something feels wrong or confusing, use <strong>Send feedback</strong> or tell your host directly.</p>
+
+    <h2>Quick checklist for testers</h2>
+    <div class="checklist">
+      <ol>
+        <li>Install the build you were given.</li>
+        <li><strong>Sign in</strong> or <strong>Create account</strong>, or use <strong>Google</strong>.</li>
+        <li><strong>Create</strong> or <strong>join</strong> a family with the <strong>6-character code</strong>.</li>
+        <li>Try <strong>Home</strong> (including <strong>Polls</strong> and any <strong>announcement</strong>), <strong>Chat</strong>, <strong>Diary</strong>, and <strong>Tasks</strong>.</li>
+        <li>Open <strong>My profile</strong> and <strong>My family</strong> once.</li>
+        <li>Send <strong>feedback</strong> if anything breaks or feels unclear.</li>
+      </ol>
+    </div>
+    <p>Your host can share the project’s <em>Beta tester guide</em> and <em>Beta release runbook</em> for install detail and build prep.</p>
+
+    <h2>Questions?</h2>
+    <p>Ask the <strong>person who shared FAM</strong> with you (the “host”). They can forward technical issues to whoever maintains the Firebase project and the app code.</p>
+
+    <footer class="meta">
+      FAM — Family Super App · Consumer guide · Source lives in the project as <code>docs/FOR_FAMILIES_AND_TESTERS.md</code> (Markdown). Regenerate this PDF with <code>bash scripts/render_family_guide_pdf.sh</code> from the app root.
+    </footer>
+  </div>
+</body>
+</html>
