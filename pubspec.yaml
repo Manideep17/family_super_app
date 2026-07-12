@@ -53,7 +53,7 @@ dependencies:
   # Firebase AI Logic client SDK, used with the "Gemini Developer API" backend,
   # which runs on the free Spark plan (no Blaze/billing needed). See
   # docs/AI_LOGIC_SETUP.md before flipping AppFlags.aiDigestEnabled on.
-  firebase_ai: ^1.0.0
+  firebase_ai: ^2.3.0
   # On-device OCR + entity extraction for the vault — no network call, no quota.
   google_mlkit_text_recognition: ^0.15.0
   google_mlkit_entity_extraction: ^0.15.0
