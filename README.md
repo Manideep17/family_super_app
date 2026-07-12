@@ -132,7 +132,12 @@ Output: `build/app/outputs/flutter-apk/app-release.apk`.
 - [docs/BETA_TESTER_GUIDE.md](docs/BETA_TESTER_GUIDE.md) — forward this to testers (install + feedback)  
 - [docs/FOLDER_STRUCTURE.md](docs/FOLDER_STRUCTURE.md)  
 - [docs/REVAMP_ROADMAP.md](docs/REVAMP_ROADMAP.md) — $0-budget design/gamification/AI revamp: what's shipped, what's next  
-- [docs/AI_LOGIC_SETUP.md](docs/AI_LOGIC_SETUP.md) — unblock Cloud Functions (Blaze, capped at $0) and the free Gemini weekly digest (Spark, no billing) — two separate steps  
+- [docs/AI_LOGIC_SETUP.md](docs/AI_LOGIC_SETUP.md) — unblock Cloud Functions (Blaze, capped at $0) and the free Gemini weekly digest (Spark, no billing) — two separate steps
+- [docs/PLAY_STORE_LAUNCH_CHECKLIST.md](docs/PLAY_STORE_LAUNCH_CHECKLIST.md) — what's done vs. what's left before Play Store submission
+- [docs/PRIVACY_POLICY.md](docs/PRIVACY_POLICY.md) / [docs/privacy-policy.html](docs/privacy-policy.html) — hostable privacy policy
+- [docs/PLAY_STORE_DATA_SAFETY.md](docs/PLAY_STORE_DATA_SAFETY.md) — Play Console Data Safety form answer key
+- [docs/delete-account.html](docs/delete-account.html) — account/data deletion request page (also see Profile → Danger zone in-app)
+- [store_listing/STORE_LISTING.md](store_listing/STORE_LISTING.md) — store copy, icon, feature graphic  
 
 ## iOS (TestFlight / App Store) — deferred
 

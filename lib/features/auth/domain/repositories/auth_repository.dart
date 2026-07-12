@@ -12,6 +12,12 @@ abstract class AuthRepository {
   Future<void> signInWithGoogle();
   Future<void> signOut();
 
+  /// Calls the `deleteAccount` Cloud Function (removes/anonymizes Firestore
+  /// data per its documented scope — see functions/src/account.ts — then
+  /// deletes the Firebase Auth user) and signs out locally. Requires
+  /// [AppFlags.functionsEnabled]; throws [FamilyAuthException] otherwise.
+  Future<void> deleteAccount();
+
   /// Sends a Firebase password-reset email (email/password accounts only).
   Future<void> sendPasswordResetEmail(String email);
 

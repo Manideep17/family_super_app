@@ -1,5 +1,6 @@
 <?xml version="1.0" encoding="utf-8"?>
 <resources>
-    <!-- Deep plum — pairs with adaptive foreground monogram -->
-    <color name="ic_launcher_background">#1A0F2E</color>
+    <!-- Deep violet — richer than plain black/plum, still dark enough for the
+         bright member-accent circles in ic_launcher_foreground.xml to pop -->
+    <color name="ic_launcher_background">#2A1B54</color>
 </resources>

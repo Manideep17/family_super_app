@@ -14,3 +14,4 @@ export { aiQuizFromMemories } from "./ai";
 export { onFamilyDemoModeWrite, onFamilyMemberJoinedDemoSeed } from "./demo_seed";
 export { scheduledFamilyDigest } from "./reminders";
 export { auditMemberStatsWrite } from "./stats_audit";
+export { deleteAccount } from "./account";

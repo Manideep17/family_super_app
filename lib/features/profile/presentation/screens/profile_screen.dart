@@ -7,6 +7,8 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:image_picker/image_picker.dart';
 
 import '../../../../core/config/app_flags.dart';
+import '../../../../core/router/app_router.dart';
+import '../../../auth/data/auth_repository_impl.dart' show FamilyAuthException;
 import '../../../family/presentation/providers/family_providers.dart';
 import '../../../gamification/domain/title_catalog.dart';
 import '../../../gamification/presentation/providers/gamification_providers.dart';
@@ -255,8 +257,109 @@ class ProfileScreen extends ConsumerWidget {
                 .bodySmall
                 ?.copyWith(color: scheme.onSurfaceVariant),
           ),
+          const SizedBox(height: 32),
+          const Divider(),
+          const SizedBox(height: 8),
+          Text(
+            'Danger zone',
+            style: Theme.of(context)
+                .textTheme
+                .titleSmall
+                ?.copyWith(color: scheme.error, fontWeight: FontWeight.bold),
+          ),
+          const SizedBox(height: 8),
+          Text(
+            'Deletes your account sign-in, your personal profile, and — if '
+            "you're the only member of your family — the whole family's "
+            'data. If others are still in your family, content you shared '
+            'with them (tasks, diary entries, chat messages) stays with the '
+            'family, same as leaving a group chat. This cannot be undone.',
+            style: Theme.of(context)
+                .textTheme
+                .bodySmall
+                ?.copyWith(color: scheme.onSurfaceVariant),
+          ),
+          const SizedBox(height: 12),
+          OutlinedButton.icon(
+            style: OutlinedButton.styleFrom(foregroundColor: scheme.error),
+            onPressed: () => _confirmAndDeleteAccount(context, ref),
+            icon: const Icon(Icons.delete_forever_outlined),
+            label: const Text('Delete my account'),
+          ),
         ],
       ),
     );
+  }
+
+  Future<void> _confirmAndDeleteAccount(BuildContext context, WidgetRef ref) async {
+    final confirmCtrl = TextEditingController();
+    final confirmed = await showDialog<bool>(
+      context: context,
+      builder: (ctx) => AlertDialog(
+        title: const Text('Delete your account?'),
+        content: Column(
+          mainAxisSize: MainAxisSize.min,
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            const Text(
+              'This permanently deletes your sign-in and profile. Type '
+              'DELETE to confirm.',
+            ),
+            const SizedBox(height: 12),
+            TextField(
+              controller: confirmCtrl,
+              autofocus: true,
+              decoration: const InputDecoration(hintText: 'DELETE'),
+            ),
+          ],
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(ctx, false),
+            child: const Text('Cancel'),
+          ),
+          FilledButton.tonal(
+            style: FilledButton.styleFrom(
+              foregroundColor: Theme.of(ctx).colorScheme.onError,
+              backgroundColor: Theme.of(ctx).colorScheme.error,
+            ),
+            onPressed: () => Navigator.pop(ctx, true),
+            child: const Text('Delete forever'),
+          ),
+        ],
+      ),
+    );
+    final typedConfirm = confirmCtrl.text.trim();
+    confirmCtrl.dispose();
+    if (confirmed != true || typedConfirm != 'DELETE') return;
+    if (!context.mounted) return;
+
+    showDialog<void>(
+      context: context,
+      barrierDismissible: false,
+      builder: (_) => const Center(child: CircularProgressIndicator()),
+    );
+    try {
+      await ref.read(authRepositoryProvider).deleteAccount();
+      // Router redirects to the login screen automatically once
+      // authStateChanges emits null — nothing further to navigate here.
+    } on FamilyAuthException catch (e) {
+      if (context.mounted) {
+        Navigator.of(context, rootNavigator: true).pop(); // close spinner
+        ScaffoldMessenger.of(context)
+            .showSnackBar(SnackBar(content: Text(e.message)));
+      }
+      return;
+    } catch (e) {
+      if (context.mounted) {
+        Navigator.of(context, rootNavigator: true).pop();
+        ScaffoldMessenger.of(context)
+            .showSnackBar(SnackBar(content: Text('Could not delete account: $e')));
+      }
+      return;
+    }
+    if (context.mounted) {
+      Navigator.of(context, rootNavigator: true).pop(); // close spinner
+    }
   }
 }

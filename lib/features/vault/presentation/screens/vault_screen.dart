@@ -12,81 +12,11 @@ import '../../../family/presentation/providers/family_providers.dart';
 import '../../domain/entities/vault_item.dart';
 import '../providers/vault_providers.dart';
 
-class VaultScreen extends ConsumerWidget {
+class VaultScreen extends ConsumerStatefulWidget {
   const VaultScreen({super.key});
 
   @override
-  Widget build(BuildContext context, WidgetRef ref) {
-    final async = ref.watch(vaultItemsProvider);
-    final scheme = Theme.of(context).colorScheme;
-
-    return Scaffold(
-      appBar: AppBar(title: const Text('Media vault')),
-      body: async.when(
-        loading: () => const Center(child: CircularProgressIndicator()),
-        error: (e, _) => Center(child: Text('Error: $e')),
-        data: (items) {
-          if (items.isEmpty) {
-            return Center(
-              child: Padding(
-                padding: const EdgeInsets.all(32),
-                child: Column(
-                  mainAxisSize: MainAxisSize.min,
-                  children: [
-                    Icon(
-                      Icons.photo_library_outlined,
-                      size: 56,
-                      color: scheme.outline,
-                    ),
-                    const SizedBox(height: 16),
-                    Text(
-                      'No shared photos yet',
-                      style: Theme.of(context).textTheme.titleLarge,
-                    ),
-                    const SizedBox(height: 8),
-                    Text(
-                      AppFlags.storageEnabled
-                          ? 'Add a family photo — everyone in your family can see it here. '
-                              'Great for recipes, IDs, and trip pics.'
-                          : 'Vault uploads are off in this build (storage not configured). '
-                              'Your host can enable Firebase Storage for uploads.',
-                      textAlign: TextAlign.center,
-                      style: TextStyle(color: scheme.onSurfaceVariant),
-                    ),
-                  ],
-                ),
-              ),
-            );
-          }
-          return RefreshIndicator(
-            onRefresh: () async {
-              ref.invalidate(vaultItemsProvider);
-              await ref.read(vaultItemsProvider.future);
-            },
-            child: GridView.builder(
-              padding: const EdgeInsets.all(12),
-              gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(
-                crossAxisCount: 2,
-                mainAxisSpacing: 10,
-                crossAxisSpacing: 10,
-                childAspectRatio: 0.85,
-              ),
-              itemCount: items.length,
-              itemBuilder: (context, i) {
-                final it = items[i];
-                return _VaultTile(item: it);
-              },
-            ),
-          );
-        },
-      ),
-      floatingActionButton: FloatingActionButton.extended(
-        onPressed: AppFlags.storageEnabled ? () => _onAddPhoto(context, ref) : null,
-        icon: const Icon(Icons.add_photo_alternate_outlined),
-        label: const Text(AppFlags.storageEnabled ? 'Add photo' : 'Storage off'),
-      ),
-    );
-  }
+  ConsumerState<VaultScreen> createState() => _VaultScreenState();
 
   static Future<void> _onAddPhoto(BuildContext context, WidgetRef ref) async {
     if (!AppFlags.storageEnabled) {
@@ -288,6 +218,148 @@ class VaultScreen extends ConsumerWidget {
         );
       }
     }
+  }
+}
+
+class _VaultScreenState extends ConsumerState<VaultScreen> {
+  final _searchCtrl = TextEditingController();
+  String _query = '';
+
+  @override
+  void dispose() {
+    _searchCtrl.dispose();
+    super.dispose();
+  }
+
+  /// Search matches title, event label, tagged people, and the on-device
+  /// OCR text (see TextExtractionService) — so a photo of a bill or report
+  /// card is findable by what's actually written on it, not just its title.
+  bool _matches(VaultItem item, String needleLower) {
+    if (needleLower.isEmpty) return true;
+    if (item.title.toLowerCase().contains(needleLower)) return true;
+    if ((item.eventTag ?? '').toLowerCase().contains(needleLower)) return true;
+    if (item.extractedText.toLowerCase().contains(needleLower)) return true;
+    if (item.personTags.any((t) => t.toLowerCase().contains(needleLower))) {
+      return true;
+    }
+    return false;
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final async = ref.watch(vaultItemsProvider);
+    final scheme = Theme.of(context).colorScheme;
+
+    return Scaffold(
+      appBar: AppBar(title: const Text('Media vault')),
+      body: async.when(
+        loading: () => const Center(child: CircularProgressIndicator()),
+        error: (e, _) => Center(child: Text('Error: $e')),
+        data: (items) {
+          if (items.isEmpty) {
+            return Center(
+              child: Padding(
+                padding: const EdgeInsets.all(32),
+                child: Column(
+                  mainAxisSize: MainAxisSize.min,
+                  children: [
+                    Icon(
+                      Icons.photo_library_outlined,
+                      size: 56,
+                      color: scheme.outline,
+                    ),
+                    const SizedBox(height: 16),
+                    Text(
+                      'No shared photos yet',
+                      style: Theme.of(context).textTheme.titleLarge,
+                    ),
+                    const SizedBox(height: 8),
+                    Text(
+                      AppFlags.storageEnabled
+                          ? 'Add a family photo — everyone in your family can see it here. '
+                              'Great for recipes, IDs, and trip pics.'
+                          : 'Vault uploads are off in this build (storage not configured). '
+                              'Your host can enable Firebase Storage for uploads.',
+                      textAlign: TextAlign.center,
+                      style: TextStyle(color: scheme.onSurfaceVariant),
+                    ),
+                  ],
+                ),
+              ),
+            );
+          }
+
+          final needle = _query.trim().toLowerCase();
+          final filtered =
+              items.where((it) => _matches(it, needle)).toList();
+
+          return Column(
+            children: [
+              Padding(
+                padding: const EdgeInsets.fromLTRB(12, 10, 12, 4),
+                child: TextField(
+                  controller: _searchCtrl,
+                  onChanged: (v) => setState(() => _query = v),
+                  decoration: InputDecoration(
+                    hintText: 'Search photos — title, tags, or text in the photo',
+                    prefixIcon: const Icon(Icons.search_rounded),
+                    suffixIcon: _query.isEmpty
+                        ? null
+                        : IconButton(
+                            icon: const Icon(Icons.clear_rounded),
+                            onPressed: () => setState(() {
+                              _searchCtrl.clear();
+                              _query = '';
+                            }),
+                          ),
+                  ),
+                ),
+              ),
+              Expanded(
+                child: filtered.isEmpty
+                    ? Center(
+                        child: Padding(
+                          padding: const EdgeInsets.all(24),
+                          child: Text(
+                            'No photos match "$_query"',
+                            textAlign: TextAlign.center,
+                            style: TextStyle(color: scheme.onSurfaceVariant),
+                          ),
+                        ),
+                      )
+                    : RefreshIndicator(
+                        onRefresh: () async {
+                          ref.invalidate(vaultItemsProvider);
+                          await ref.read(vaultItemsProvider.future);
+                        },
+                        child: GridView.builder(
+                          padding: const EdgeInsets.all(12),
+                          gridDelegate:
+                              const SliverGridDelegateWithFixedCrossAxisCount(
+                            crossAxisCount: 2,
+                            mainAxisSpacing: 10,
+                            crossAxisSpacing: 10,
+                            childAspectRatio: 0.85,
+                          ),
+                          itemCount: filtered.length,
+                          itemBuilder: (context, i) {
+                            final it = filtered[i];
+                            return _VaultTile(item: it);
+                          },
+                        ),
+                      ),
+              ),
+            ],
+          );
+        },
+      ),
+      floatingActionButton: FloatingActionButton.extended(
+        onPressed:
+            AppFlags.storageEnabled ? () => VaultScreen._onAddPhoto(context, ref) : null,
+        icon: const Icon(Icons.add_photo_alternate_outlined),
+        label: const Text(AppFlags.storageEnabled ? 'Add photo' : 'Storage off'),
+      ),
+    );
   }
 }
 

@@ -1,6 +1,8 @@
+import 'package:cloud_functions/cloud_functions.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:google_sign_in/google_sign_in.dart';
 
+import '../../../core/config/app_flags.dart';
 import '../domain/repositories/auth_repository.dart';
 
 class AuthRepositoryImpl implements AuthRepository {
@@ -67,6 +69,31 @@ class AuthRepositoryImpl implements AuthRepository {
       _google.signOut(),
       _auth.signOut(),
     ]);
+  }
+
+  @override
+  Future<void> deleteAccount() async {
+    if (!AppFlags.functionsEnabled) {
+      throw FamilyAuthException(
+        'Account deletion needs the backend (Cloud Functions), which is off '
+        'in this build. Email support to request deletion instead.',
+      );
+    }
+    if (_auth.currentUser == null) {
+      throw FamilyAuthException('Sign in first.');
+    }
+    try {
+      await FirebaseFunctions.instance.httpsCallable('deleteAccount').call();
+    } on FirebaseFunctionsException catch (e) {
+      throw FamilyAuthException(e.message ?? 'Could not delete account (${e.code}).');
+    }
+    // The Auth user no longer exists server-side; clear the local session too.
+    try {
+      await _google.signOut();
+    } catch (_) {
+      // Ignore — Google session cleanup is best-effort.
+    }
+    await _auth.signOut();
   }
 
   @override

@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:intl/intl.dart';
 
+import '../../../../core/theme/app_theme.dart';
 import '../../domain/entities/story.dart';
 import '../diary_moods.dart';
 
@@ -20,6 +21,11 @@ class StoryCard extends StatelessWidget {
     final excerpt = story.body.length > 140 ? '${story.body.substring(0, 140)}…' : story.body;
 
     final reactionTotal = story.reactions.length;
+    final authorAccent = AppTheme.colorForMember(
+      story.authorUid.isNotEmpty ? story.authorUid : story.authorName,
+    );
+    final authorInitial =
+        story.authorName.isNotEmpty ? story.authorName[0].toUpperCase() : '?';
 
     return Padding(
       padding: const EdgeInsets.fromLTRB(16, 0, 16, 12),
@@ -60,12 +66,29 @@ class StoryCard extends StatelessWidget {
                                 color: scheme.onPrimaryContainer,
                               ),
                             ),
-                            const SizedBox(height: 2),
-                            Text(
-                              '${story.authorName} · ${_dateFmt.format(story.createdAt)}',
-                              style: textTheme.labelMedium?.copyWith(
-                                color: scheme.onPrimaryContainer.withValues(alpha: 0.85),
-                              ),
+                            const SizedBox(height: 4),
+                            Row(
+                              children: [
+                                CircleAvatar(
+                                  radius: 8,
+                                  backgroundColor: authorAccent,
+                                  child: Text(
+                                    authorInitial,
+                                    style: const TextStyle(
+                                      fontSize: 9,
+                                      color: Colors.white,
+                                      fontWeight: FontWeight.bold,
+                                    ),
+                                  ),
+                                ),
+                                const SizedBox(width: 6),
+                                Text(
+                                  '${story.authorName} · ${_dateFmt.format(story.createdAt)}',
+                                  style: textTheme.labelMedium?.copyWith(
+                                    color: scheme.onPrimaryContainer.withValues(alpha: 0.85),
+                                  ),
+                                ),
+                              ],
                             ),
                           ],
                         ),

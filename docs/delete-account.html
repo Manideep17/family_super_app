@@ -1,0 +1,102 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Delete your FAM account — FAM</title>
+<style>
+  :root { color-scheme: light dark; }
+  body {
+    font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+    max-width: 640px;
+    margin: 0 auto;
+    padding: 48px 24px;
+    line-height: 1.6;
+  }
+  h1 { margin-bottom: 4px; }
+  label { display: block; margin: 16px 0 6px; font-weight: 600; }
+  input, textarea {
+    width: 100%;
+    box-sizing: border-box;
+    padding: 10px;
+    font-size: 15px;
+    border: 1px solid #d1d5db;
+    border-radius: 8px;
+  }
+  button {
+    margin-top: 20px;
+    padding: 12px 20px;
+    font-size: 15px;
+    font-weight: 600;
+    border: none;
+    border-radius: 8px;
+    background: #dc2626;
+    color: white;
+    cursor: pointer;
+  }
+  button:hover { background: #b91c1c; }
+  .note {
+    background: #f3f4f6;
+    border-radius: 8px;
+    padding: 14px 16px;
+    margin: 20px 0;
+    font-size: 14px;
+  }
+  a { color: #2563eb; }
+</style>
+</head>
+<body>
+  <h1>Delete your account and data</h1>
+  <p>
+    You can request deletion of your FAM account whether or not you still
+    have the app installed. This works alongside — not instead of —
+    in-app deletion under <em>Profile → Danger zone → Delete my account</em>,
+    which deletes immediately. This page is for anyone who can't (or would
+    rather not) open the app to do it.
+  </p>
+
+  <div class="note">
+    <strong>What gets deleted:</strong> your sign-in, your name/email/profile
+    photo, and — if you were the only member of your family — all of that
+    family's data. If your family still has other members, content you
+    shared with them (tasks, diary entries, chat messages) stays with the
+    family, the same way a message you sent stays in a group chat after you
+    leave it. See the <a href="privacy-policy.html">Privacy Policy</a> for
+    the full picture. We process requests within 30 days.
+  </div>
+
+  <form id="delete-form">
+    <label for="email">Your FAM account email</label>
+    <input type="email" id="email" name="email" required placeholder="you@example.com">
+
+    <label for="reason">Anything we should know? (optional)</label>
+    <textarea id="reason" name="reason" rows="3" placeholder="Optional context"></textarea>
+
+    <button type="submit">Request deletion</button>
+  </form>
+
+  <p><small>
+    This form opens your email app with a pre-filled deletion request — there's
+    no server behind this page, so nothing is sent until you hit send in your
+    email client. Prefer to email directly? Write to
+    <a href="mailto:mandyapp17@gmail.com">mandyapp17@gmail.com</a>
+    with subject "Delete my FAM account".
+  </small></p>
+
+  <script>
+    document.getElementById('delete-form').addEventListener('submit', function (e) {
+      e.preventDefault();
+      var email = document.getElementById('email').value.trim();
+      var reason = document.getElementById('reason').value.trim();
+      var subject = encodeURIComponent('Delete my FAM account');
+      var body = encodeURIComponent(
+        'Please delete my FAM account and associated data.\n\n' +
+        'Account email: ' + email + '\n' +
+        (reason ? ('Notes: ' + reason + '\n') : '')
+      );
+      // TODO: replace with the same address as the mailto link above.
+      window.location.href = 'mailto:mandyapp17@gmail.com?subject=' + subject + '&body=' + body;
+    });
+  </script>
+</body>
+</html>

@@ -16,6 +16,8 @@ class LeaderboardScreen extends ConsumerStatefulWidget {
 }
 
 class _LeaderboardScreenState extends ConsumerState<LeaderboardScreen> {
+  bool _sortByStreak = false;
+
   @override
   Widget build(BuildContext context) {
     // Weekly champion is computed by the `weeklyChampionRollup` Cloud
@@ -30,6 +32,18 @@ class _LeaderboardScreenState extends ConsumerState<LeaderboardScreen> {
       appBar: AppBar(
         title: const Text('Family leaderboard'),
         actions: [
+          IconButton(
+            tooltip: _sortByStreak
+                ? 'Sorted by streak — tap to sort by points'
+                : 'Sorted by points — tap to sort by streak',
+            onPressed: () => setState(() => _sortByStreak = !_sortByStreak),
+            icon: Icon(
+              _sortByStreak
+                  ? Icons.local_fire_department_rounded
+                  : Icons.emoji_events_outlined,
+              color: _sortByStreak ? scheme.tertiary : null,
+            ),
+          ),
           if (familyId != null && familyId.isNotEmpty)
             IconButton(
               tooltip: 'Run weekly rollup now',
@@ -55,7 +69,17 @@ class _LeaderboardScreenState extends ConsumerState<LeaderboardScreen> {
       body: async.when(
         loading: () => const Center(child: CircularProgressIndicator()),
         error: (e, _) => Center(child: Text('Error: $e')),
-        data: (rows) {
+        data: (rowsFromServer) {
+          // Firestore already orders by points; re-sort client-side for the
+          // streak view rather than adding a second composite index.
+          final rows = [...rowsFromServer];
+          if (_sortByStreak) {
+            rows.sort((a, b) {
+              final byCurrent = b.currentStreak.compareTo(a.currentStreak);
+              if (byCurrent != 0) return byCurrent;
+              return b.longestStreak.compareTo(a.longestStreak);
+            });
+          }
           if (rows.isEmpty) {
             return Center(
               child: Padding(

@@ -4,6 +4,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../../../../core/config/invite_link_hosts.dart';
 import '../../../../core/moderation/local_hide_store.dart';
+import '../../../../core/theme/app_theme.dart';
 import '../../domain/entities/family_member.dart';
 import '../providers/family_providers.dart';
 import '../providers/local_hide_providers.dart';
@@ -346,13 +347,21 @@ class FamilyManagementScreen extends ConsumerWidget {
                           margin: const EdgeInsets.only(bottom: 8),
                           child: ListTile(
                             leading: CircleAvatar(
+                              backgroundColor:
+                                  AppTheme.colorForMember(m.email),
                               backgroundImage: m.avatarUrl != null &&
                                       m.avatarUrl!.isNotEmpty
                                   ? NetworkImage(m.avatarUrl!)
                                   : null,
                               child:
                                   m.avatarUrl == null || m.avatarUrl!.isEmpty
-                                      ? Text(m.initial)
+                                      ? Text(
+                                          m.initial,
+                                          style: const TextStyle(
+                                            color: Colors.white,
+                                            fontWeight: FontWeight.bold,
+                                          ),
+                                        )
                                       : null,
                             ),
                             title: Row(

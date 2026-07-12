@@ -1,0 +1,135 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Privacy Policy — FAM</title>
+<style>
+  :root { color-scheme: light dark; }
+  body {
+    font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+    max-width: 720px;
+    margin: 0 auto;
+    padding: 48px 24px 80px;
+    line-height: 1.6;
+  }
+  h1 { margin-bottom: 4px; }
+  h2 { margin-top: 40px; border-bottom: 1px solid #e5e7eb; padding-bottom: 6px; }
+  h3 { margin-top: 28px; }
+  table { border-collapse: collapse; width: 100%; margin: 16px 0; }
+  th, td { border: 1px solid #e5e7eb; padding: 8px 12px; text-align: left; font-size: 14px; }
+  th { background: #f9fafb; }
+  code { background: #f3f4f6; padding: 1px 5px; border-radius: 4px; font-size: 90%; }
+  .meta { color: #6b7280; }
+  a { color: #2563eb; }
+</style>
+</head>
+<body>
+  <h1>FAM privacy policy</h1>
+  <p class="meta">Last updated: <!-- TODO: fill in date before publishing --> [date]</p>
+
+  <p>FAM ("the app", "we", "us") is a private family organizer app. This policy explains
+  what information the app collects, why, and how you can control or delete it.</p>
+
+  <h2>Who this policy covers</h2>
+  <p>FAM is operated by <strong>[Manideep Biswas — fill in legal name / entity if different]</strong>,
+  contactable at <a href="mailto:mandyapp17@gmail.com">mandyapp17@gmail.com</a>.</p>
+
+  <h2>Information we collect</h2>
+  <p>FAM only collects information needed to run a private, invite-only family hub. We do
+  not sell data, and we do not show ads.</p>
+
+  <h3>Account information</h3>
+  <p>When you sign in with email/password or Google Sign-In, we collect your <strong>name,
+  email address</strong>, and — if you sign in with Google — your <strong>Google profile
+  photo</strong>. This identifies you to other members of your family and is stored in
+  Firebase Authentication and Cloud Firestore.</p>
+
+  <h3>Family content</h3>
+  <p>Everything you create inside a family is visible only to members of that family
+  (enforced by Firestore security rules):</p>
+  <ul>
+    <li><strong>Diary entries</strong> — title, text, mood tag, tagged family members, and any photos/videos you attach.</li>
+    <li><strong>Tasks</strong> — title, description, who assigned/was assigned, due date, and points awarded.</li>
+    <li><strong>Calendar events</strong> — title, description, date/time, and participants.</li>
+    <li><strong>Chat messages</strong> — text sent in the family chat.</li>
+    <li><strong>Vault photos</strong> — photos/videos you upload, any people/event tags, and text our app automatically detects in the photo.</li>
+    <li><strong>Polls, predictions, and game results</strong> — whatever you submit while using those features.</li>
+    <li><strong>Gamification data</strong> — points, streaks, and badges, computed from the activity above.</li>
+  </ul>
+
+  <h3>On-device photo scanning</h3>
+  <p>When you upload a photo to the family vault, the app uses Google ML Kit, which runs
+  <strong>entirely on your device</strong>, to detect any text in the photo so you can search
+  for it later. The photo itself is never analyzed by a remote server for this feature — only
+  the text ML Kit finds is saved to our database, alongside the photo.</p>
+
+  <h3>AI-generated weekly digest (optional feature)</h3>
+  <p>If you use the "weekly digest" feature, a summary of your family's recent diary entries,
+  completed tasks, and upcoming events is sent to Google's Gemini API to generate a short
+  written recap. This feature is off unless explicitly enabled.</p>
+
+  <h3>Automatically collected technical information</h3>
+  <ul>
+    <li><strong>Crash reports</strong> via Firebase Crashlytics (device model, OS version, crash details — not your family content).</li>
+    <li><strong>Basic usage analytics</strong> via Firebase Analytics (which screens are opened, not their contents).</li>
+    <li><strong>A push notification token</strong> (Firebase Cloud Messaging and/or OneSignal) to deliver notifications like task reminders.</li>
+  </ul>
+
+  <h3>What we do not collect</h3>
+  <p>We do not access your contacts, precise location, or any data outside the family
+  features listed above. We do not run advertising, and no third-party advertising SDKs are
+  included in this app.</p>
+
+  <h2>Who we share data with</h2>
+  <table>
+    <tr><th>Provider</th><th>What they process</th></tr>
+    <tr><td>Google Firebase (Auth, Firestore, Storage, Cloud Functions, Crashlytics, Analytics, Cloud Messaging)</td><td>Account info, family content, crash/usage data</td></tr>
+    <tr><td>Google Gemini API (via Firebase AI Logic)</td><td>Diary/task/event summaries, only if you use the weekly digest feature</td></tr>
+    <tr><td>Cloudinary <em>(if media uploads are enabled)</em></td><td>Photos/videos you upload</td></tr>
+    <tr><td>OneSignal <em>(if configured)</em></td><td>Push notification delivery</td></tr>
+  </table>
+  <p>We do not sell your data to anyone, and we do not share it for advertising purposes.</p>
+
+  <h2>Your choices and rights</h2>
+  <ul>
+    <li><strong>Access/export:</strong> family content is visible to you at any time inside the app.</li>
+    <li><strong>Delete a photo, task, diary entry, etc.:</strong> available directly in the app, where you are the original creator.</li>
+    <li><strong>Delete your account and all associated data:</strong> in the app, go to
+      Profile → Danger zone → Delete my account — this is instant. Prefer the web?
+      Use our <a href="delete-account.html">account deletion request page</a>.</li>
+    <li><strong>Leave a family:</strong> available from the family management screen at any time.</li>
+  </ul>
+
+  <h2>Children's privacy</h2>
+  <p>FAM is a general family app intended to be used together by people of different ages
+  within a household, under the account of the adult who set up the family. It is not
+  directed primarily at children, and we do not knowingly collect personal information
+  directly from a child without a parent or guardian's involvement in creating and managing
+  the family. If you believe a child has provided us personal information outside of a
+  parent-managed family, contact us and we will remove it.</p>
+
+  <h2>Data retention</h2>
+  <p>We retain family content for as long as your family's account is active. If you delete a
+  piece of content, it is removed from our active database; some data may persist briefly in
+  backups before being purged.</p>
+
+  <h2>Security</h2>
+  <p>Access to family data is restricted by Firebase security rules to signed-in members of
+  that specific family. No security measure is perfect, and we can't guarantee absolute
+  security, but we do not expose family data to the public internet or to other families.</p>
+
+  <h2>Changes to this policy</h2>
+  <p>We'll update the "Last updated" date above if this policy changes, and — for material
+  changes — notify you in-app.</p>
+
+  <h2>Contact</h2>
+  <p>Questions about this policy or your data:
+  <a href="mailto:mandyapp17@gmail.com">mandyapp17@gmail.com</a>.</p>
+
+  <hr>
+  <p><small><em>Technical note: family data access is enforced server-side by Firestore and
+  Storage security rules scoped to <code>families/{familyId}/...</code>, requiring the
+  requester to be a member of that specific family.</em></small></p>
+</body>
+</html>

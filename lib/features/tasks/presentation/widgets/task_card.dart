@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:intl/intl.dart';
 
+import '../../../../core/theme/app_theme.dart';
 import '../../domain/entities/family_task.dart';
 
 class TaskCard extends StatelessWidget {
@@ -36,12 +37,23 @@ class TaskCard extends StatelessWidget {
     final overdue =
         task.dueAt.isBefore(DateTime.now()) && task.status == TaskStatus.pending;
 
+    // Signature color of whoever the task is "about" (the assignee) — same
+    // helper used for their Home avatar, so the color reads consistently
+    // across the app.
+    final memberAccent = AppTheme.colorForMember(
+      task.assigneeEmail.isNotEmpty ? task.assigneeEmail : task.assigneeName,
+    );
+
     return Padding(
       padding: const EdgeInsets.fromLTRB(16, 0, 16, 10),
       child: Material(
         color: scheme.surfaceContainerLow,
         borderRadius: BorderRadius.circular(18),
         clipBehavior: Clip.antiAlias,
+        shape: RoundedRectangleBorder(
+          borderRadius: BorderRadius.circular(18),
+          side: BorderSide(color: memberAccent.withValues(alpha: 0.45), width: 1.4),
+        ),
         child: InkWell(
           onTap: onTap,
           child: Padding(
@@ -73,7 +85,20 @@ class TaskCard extends StatelessWidget {
                   ],
                 ),
                 const SizedBox(height: 4),
-                Text(subtitle, style: textTheme.bodySmall?.copyWith(color: scheme.primary)),
+                Row(
+                  children: [
+                    Container(
+                      width: 8,
+                      height: 8,
+                      decoration: BoxDecoration(
+                        color: memberAccent,
+                        shape: BoxShape.circle,
+                      ),
+                    ),
+                    const SizedBox(width: 6),
+                    Text(subtitle, style: textTheme.bodySmall?.copyWith(color: scheme.primary)),
+                  ],
+                ),
                 const SizedBox(height: 8),
                 Text(
                   task.description,
