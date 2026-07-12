@@ -43,8 +43,16 @@ class TextExtractionService {
   Future<EntityExtractor> _extractor() async {
     var e = _entityExtractor;
     if (e != null) return e;
-    e = EntityExtractor(language: EntityExtractorLanguage.english);
-    await e.downloadModelIfNeeded();
+    const language = EntityExtractorLanguage.english;
+    // EntityExtractor itself has no download method — model downloads are
+    // handled by the separate EntityExtractorModelManager, keyed by the
+    // same language tag used when annotating text.
+    final modelManager = EntityExtractorModelManager();
+    final alreadyDownloaded = await modelManager.isModelDownloaded(language.name);
+    if (!alreadyDownloaded) {
+      await modelManager.downloadModel(language.name);
+    }
+    e = EntityExtractor(language: language);
     _entityExtractor = e;
     return e;
   }
