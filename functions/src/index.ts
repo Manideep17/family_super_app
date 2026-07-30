@@ -12,7 +12,7 @@ export { onStoryCreated } from "./diary";
 export { weeklyChampionRollup, bestMomentsRollup } from "./weekly";
 export { aiQuizFromMemories } from "./ai";
 export { onFamilyDemoModeWrite, onFamilyMemberJoinedDemoSeed } from "./demo_seed";
-export { scheduledFamilyDigest } from "./reminders";
+export { scheduledFamilyDigest, weeklyDigestReady } from "./reminders";
 export { auditMemberStatsWrite } from "./stats_audit";
 export { deleteAccount } from "./account";
 export { verifySubscriptionPurchase, refreshSubscriptions } from "./billing";

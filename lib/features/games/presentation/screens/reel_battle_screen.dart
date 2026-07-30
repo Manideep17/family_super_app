@@ -8,6 +8,7 @@ import 'package:image_picker/image_picker.dart';
 import 'package:uuid/uuid.dart';
 import 'package:video_player/video_player.dart';
 
+import '../../../../core/analytics/app_analytics.dart';
 import '../../../../core/config/app_flags.dart';
 import '../../../../core/media/media_upload_service.dart';
 import '../../../../core/theme/app_theme.dart';
@@ -110,6 +111,7 @@ class _ReelBattleScreenState extends ConsumerState<ReelBattleScreen> {
         'reactions': <String, String>{},
         'createdAt': FieldValue.serverTimestamp(),
       });
+      AppAnalytics.logEvent('reel_created');
     } catch (e) {
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(

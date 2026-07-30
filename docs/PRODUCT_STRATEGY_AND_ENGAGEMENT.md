@@ -179,14 +179,13 @@ Locket and BeReal's actual insight is that the widget is the trigger; the
 app itself is secondary. FAM should be visible on the home screen, not
 just in the app drawer.
 
-**Rethink what premium gates.** Gating vault storage and the AI digest
-behind a single payer's subscription means only the paying parent gets the
-good experience, while the people who create the actual network effect
-(the rest of the family) get the lesser version. Premium should sell
-extras (deeper AI features, unlimited history, richer recaps) rather than
-gate the core "does everyone in this family want to open this" experience
-— growth here depends on every member wanting in, not just the one with a
-card on file.
+**Rethink what premium gates — verified, already correct.** Checked the
+actual gating logic (`isPremiumProvider` reads `Family.isPremium`, computed
+from the family document, not a per-user field) and confirmed premium
+status is already family-wide: once one member's payment activates it,
+every member of that family sees the unlocked experience, not just the
+payer. No change was needed here — this was a risk worth checking before
+"fixing" something that wasn't actually broken.
 
 **State the trust promise out loud.** "Private, no ads, nothing sold, just
 your family" should be a visible moment in the product — literally a

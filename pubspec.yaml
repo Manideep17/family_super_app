@@ -62,6 +62,9 @@ dependencies:
   # On-device OCR + entity extraction for the vault — no network call, no quota.
   google_mlkit_text_recognition: ^0.15.0
   google_mlkit_entity_extraction: ^0.15.0
+  # On-device text-to-speech for the Sunday weekly-recap "Play recap" button
+  # — reads the AI digest aloud, no server cost, no new billing.
+  flutter_tts: ^4.2.5
 
 dev_dependencies:
   flutter_test:

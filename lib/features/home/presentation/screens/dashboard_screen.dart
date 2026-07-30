@@ -22,7 +22,6 @@ import '../../../insights/presentation/screens/ai_quiz_screen.dart';
 import '../../../insights/presentation/screens/best_moments_screen.dart';
 import '../../../insights/presentation/screens/mood_insights_screen.dart';
 import '../../../insights/presentation/screens/weekly_digest_screen.dart';
-import '../../../predictions/presentation/screens/predictions_screen.dart';
 import '../../../polls/presentation/screens/family_polls_screen.dart';
 import '../../../family/presentation/providers/family_providers.dart';
 import '../../../profile/presentation/providers/user_profile_providers.dart';
@@ -353,16 +352,6 @@ class DashboardScreen extends ConsumerWidget {
                   onTap: () => Navigator.of(context).push(
                     MaterialPageRoute<void>(
                       builder: (_) => const BestMomentsScreen(),
-                    ),
-                  ),
-                ),
-                _ActionTile(
-                  icon: Icons.lightbulb_outline,
-                  label: 'Predictions',
-                  color: Colors.teal,
-                  onTap: () => Navigator.of(context).push(
-                    MaterialPageRoute<void>(
-                      builder: (_) => const PredictionsScreen(),
                     ),
                   ),
                 ),

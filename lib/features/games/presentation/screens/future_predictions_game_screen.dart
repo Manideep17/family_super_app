@@ -4,6 +4,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:intl/intl.dart';
 
+import '../../../../core/analytics/app_analytics.dart';
 import '../../../../core/theme/app_theme.dart';
 import '../../../family/presentation/providers/family_providers.dart';
 import '../../../gamification/presentation/providers/gamification_providers.dart';
@@ -63,6 +64,7 @@ class _FuturePredictionsGameScreenState
       'outcome': null,
       'createdAt': FieldValue.serverTimestamp(),
     });
+    AppAnalytics.logEvent('prediction_created');
   }
 
   Future<void> _vote(String id, String value) async {
@@ -78,6 +80,7 @@ class _FuturePredictionsGameScreenState
       'outcome': outcome,
       'resolvedAt': FieldValue.serverTimestamp(),
     });
+    AppAnalytics.logEvent('prediction_resolved', params: {'outcome': outcome});
     // Award points to family members whose vote matched the outcome.
     final repo = ref.read(gamificationRepositoryProvider);
     final me = FirebaseAuth.instance.currentUser?.uid;

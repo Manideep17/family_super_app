@@ -1,6 +1,7 @@
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 
+import '../../../core/analytics/app_analytics.dart';
 import '../../family/data/family_scope.dart';
 import '../../gamification/domain/repositories/gamification_repository.dart';
 import '../domain/entities/creative_submission.dart';
@@ -82,6 +83,7 @@ class FamilyGamesRepositoryImpl implements FamilyGamesRepository {
       'authorName': _name(u),
       'createdAt': FieldValue.serverTimestamp(),
     });
+    AppAnalytics.logEvent('time_travel_response_submitted');
     await _maybeReward();
   }
 
@@ -100,6 +102,7 @@ class FamilyGamesRepositoryImpl implements FamilyGamesRepository {
       'authorName': _name(u),
       'createdAt': FieldValue.serverTimestamp(),
     });
+    AppAnalytics.logEvent('creative_submission_posted');
     await _maybeReward();
   }
 

@@ -467,15 +467,9 @@ service cloud.firestore {
         allow write: if false;
       }
 
-      // General predictions.
-      match /predictions/{id} {
-        allow read: if canReadFamilyData(fid);
-        allow create: if isMemberOf(fid)
-          && request.resource.data.predictorUid == request.auth.uid;
-        allow update, delete: if isMemberOf(fid)
-          && resource.data.predictorUid == request.auth.uid;
-      }
-
+      // Predictions game (see games hub -> "Future predictions"). The
+      // simpler `predictions` collection/feature was merged into this one
+      // and its rule removed — nothing writes to `predictions` anymore.
       // Future predictions game.
       match /future_predictions/{id} {
         allow read: if canReadFamilyData(fid);

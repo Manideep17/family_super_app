@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:flutter_tts/flutter_tts.dart';
 
 import '../../../../core/ai/family_digest_service.dart';
 import '../../../../core/config/app_flags.dart';
@@ -26,15 +27,51 @@ class WeeklyDigestScreen extends ConsumerStatefulWidget {
 
 class _WeeklyDigestScreenState extends ConsumerState<WeeklyDigestScreen> {
   final _service = FamilyDigestService();
+  final _tts = FlutterTts();
   bool _loading = false;
+  bool _speaking = false;
   String? _error;
   String? _digest;
 
   @override
   void initState() {
     super.initState();
+    _tts.setCompletionHandler(() {
+      if (mounted) setState(() => _speaking = false);
+    });
+    _tts.setCancelHandler(() {
+      if (mounted) setState(() => _speaking = false);
+    });
+    _tts.setErrorHandler((_) {
+      if (mounted) setState(() => _speaking = false);
+    });
     if (AppFlags.aiDigestEnabled && ref.read(isPremiumProvider)) {
       WidgetsBinding.instance.addPostFrameCallback((_) => _generate());
+    }
+  }
+
+  @override
+  void dispose() {
+    _tts.stop();
+    super.dispose();
+  }
+
+  /// Reads the digest aloud on-device — the "Sunday recap" ritual works
+  /// even for family members who'd rather listen than read. Free, no
+  /// server cost (see docs/PRODUCT_STRATEGY_AND_ENGAGEMENT.md, "one weekly
+  /// ritual").
+  Future<void> _togglePlayback() async {
+    if (_speaking) {
+      await _tts.stop();
+      if (mounted) setState(() => _speaking = false);
+      return;
+    }
+    final text = _digest;
+    if (text == null || text.isEmpty) return;
+    setState(() => _speaking = true);
+    final result = await _tts.speak(text);
+    if (result != 1 && mounted) {
+      setState(() => _speaking = false);
     }
   }
 
@@ -155,10 +192,29 @@ class _WeeklyDigestScreenState extends ConsumerState<WeeklyDigestScreen> {
                                   ),
                   ),
                   const SizedBox(height: 12),
-                  FilledButton.icon(
-                    onPressed: _loading ? null : _generate,
-                    icon: const Icon(Icons.refresh_rounded),
-                    label: Text(_digest == null ? 'Generate' : 'Regenerate'),
+                  Row(
+                    children: [
+                      Expanded(
+                        child: FilledButton.icon(
+                          onPressed: _loading ? null : _generate,
+                          icon: const Icon(Icons.refresh_rounded),
+                          label:
+                              Text(_digest == null ? 'Generate' : 'Regenerate'),
+                        ),
+                      ),
+                      if (_digest != null) ...[
+                        const SizedBox(width: 8),
+                        FilledButton.tonalIcon(
+                          onPressed: _togglePlayback,
+                          icon: Icon(
+                            _speaking
+                                ? Icons.stop_rounded
+                                : Icons.volume_up_rounded,
+                          ),
+                          label: Text(_speaking ? 'Stop' : 'Play recap'),
+                        ),
+                      ],
+                    ],
                   ),
                 ],
               ),

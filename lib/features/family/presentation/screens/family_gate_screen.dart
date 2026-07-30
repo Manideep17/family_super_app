@@ -10,6 +10,7 @@ import '../../../../core/router/app_router.dart';
 import '../../../../core/theme/app_theme.dart';
 import 'create_family_screen.dart';
 import 'join_family_screen.dart';
+import 'trust_promise_screen.dart';
 
 /// Shown after sign-in when the user has no familyId yet. Lets them either
 /// create a brand-new family or join an existing one with an invite code.
@@ -24,7 +25,30 @@ class _FamilyGateScreenState extends ConsumerState<FamilyGateScreen> {
   @override
   void initState() {
     super.initState();
-    WidgetsBinding.instance.addPostFrameCallback((_) => _maybeShowWelcome());
+    WidgetsBinding.instance.addPostFrameCallback((_) => _maybeShowOnboarding());
+  }
+
+  /// Trust screen first (one-time), then the existing welcome tips dialog —
+  /// both gated on their own SharedPreferences flag so returning users never
+  /// see either again.
+  Future<void> _maybeShowOnboarding() async {
+    await _maybeShowTrustPromise();
+    if (!mounted) return;
+    await _maybeShowWelcome();
+  }
+
+  Future<void> _maybeShowTrustPromise() async {
+    final prefs = await SharedPreferences.getInstance();
+    if (!mounted) return;
+    if (prefs.getBool('fam_trust_promise_v1') == true) return;
+    await Navigator.of(context).push(
+      MaterialPageRoute<void>(
+        builder: (_) => const TrustPromiseScreen(),
+        fullscreenDialog: true,
+      ),
+    );
+    if (!mounted) return;
+    await prefs.setBool('fam_trust_promise_v1', true);
   }
 
   Future<void> _maybeShowWelcome() async {

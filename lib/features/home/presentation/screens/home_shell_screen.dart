@@ -7,6 +7,7 @@ import '../../../../core/owner/owner_analytics_emails.dart';
 import '../../../chat/presentation/screens/family_chat_screen.dart';
 import '../../../family/domain/entities/family_member.dart';
 import '../../../diary/presentation/screens/diary_feed_screen.dart';
+import '../../../feed/presentation/screens/family_feed_screen.dart';
 import '../../../family/presentation/providers/family_providers.dart';
 import '../../../family/presentation/screens/family_management_screen.dart';
 import '../../../insights/presentation/screens/ai_quiz_screen.dart';
@@ -19,7 +20,6 @@ import '../../../vault/presentation/screens/vault_screen.dart';
 import '../../../gamification/presentation/providers/gamification_providers.dart';
 import '../../../gamification/presentation/screens/leaderboard_screen.dart';
 import '../../../games/presentation/screens/games_hub_screen.dart';
-import '../../../predictions/presentation/screens/predictions_screen.dart';
 import '../../../polls/presentation/screens/family_polls_screen.dart';
 import '../../../profile/presentation/providers/user_profile_providers.dart';
 import '../../../profile/presentation/screens/profile_screen.dart';
@@ -38,7 +38,7 @@ class _HomeShellScreenState extends ConsumerState<HomeShellScreen> {
   int _index = 0;
   String? _warmedFamilyId;
 
-  static const _titles = ['Home', 'Family Chat', 'Diary', 'Tasks'];
+  static const _titles = ['Feed', 'Home', 'Family Chat', 'Diary', 'Tasks'];
 
   @override
   Widget build(BuildContext context) {
@@ -222,19 +222,9 @@ class _HomeShellScreenState extends ConsumerState<HomeShellScreen> {
                 },
               ),
               ListTile(
-                leading: const Icon(Icons.lightbulb_outline),
-                title: const Text('Predictions'),
-                onTap: () {
-                  Navigator.pop(context);
-                  Navigator.of(context).push(
-                    MaterialPageRoute<void>(
-                        builder: (_) => const PredictionsScreen()),
-                  );
-                },
-              ),
-              ListTile(
                 leading: const Icon(Icons.sports_esports_outlined),
                 title: const Text('Games'),
+                subtitle: const Text('Predictions, reels, and more'),
                 onTap: () {
                   Navigator.pop(context);
                   Navigator.of(context).push(
@@ -332,6 +322,7 @@ class _HomeShellScreenState extends ConsumerState<HomeShellScreen> {
       body: IndexedStack(
         index: _index,
         children: const [
+          FamilyFeedScreen(),
           DashboardScreen(),
           FamilyChatScreen(),
           DiaryFeedScreen(),
@@ -342,6 +333,11 @@ class _HomeShellScreenState extends ConsumerState<HomeShellScreen> {
         selectedIndex: _index,
         onDestinationSelected: (i) => setState(() => _index = i),
         destinations: const [
+          NavigationDestination(
+            icon: Icon(Icons.dynamic_feed_outlined),
+            selectedIcon: Icon(Icons.dynamic_feed_rounded),
+            label: 'Feed',
+          ),
           NavigationDestination(
             icon: Icon(Icons.home_outlined),
             selectedIcon: Icon(Icons.home_rounded),

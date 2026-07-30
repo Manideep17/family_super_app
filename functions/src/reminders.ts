@@ -40,3 +40,47 @@ export const scheduledFamilyDigest = onSchedule(
     logger.info("scheduledFamilyDigest: done", { count: snap.size });
   },
 );
+
+/**
+ * The "one weekly ritual" from docs/PRODUCT_STRATEGY_AND_ENGAGEMENT.md —
+ * a Sunday-evening nudge that turns the AI digest from "generate anytime"
+ * into a specific recurring appointment. This function only sends the
+ * notification; the digest itself is still generated on-device when the
+ * family opens the screen (Gemini Developer API stays free/client-side —
+ * see docs/AI_LOGIC_SETUP.md — no server-side AI call here, so this adds
+ * no Blaze cost beyond the Functions invocation itself).
+ *
+ * Reuses the same `dailyDigestOptIn` flag families already toggle from
+ * "My family" — one opt-in covers both the daily nudge and this weekly one.
+ */
+export const weeklyDigestReady = onSchedule(
+  {
+    schedule: "every sunday 18:00",
+    timeZone: "Asia/Kolkata",
+    region: REGION,
+  },
+  async () => {
+    const db = admin.firestore();
+    const snap = await db
+      .collection("families")
+      .where("dailyDigestOptIn", "==", true)
+      .get();
+    if (snap.empty) {
+      logger.info("weeklyDigestReady: no opted-in families");
+      return;
+    }
+    for (const doc of snap.docs) {
+      const familyId = doc.id;
+      try {
+        await sendToFamily(familyId, {
+          title: "Your week is ready 🎉",
+          body: "Open FAM for this week's family recap — tap Play recap to hear it.",
+          data: { route: "/home" },
+        });
+      } catch (e) {
+        logger.warn("weeklyDigestReady: send failed", { familyId, e });
+      }
+    }
+    logger.info("weeklyDigestReady: done", { count: snap.size });
+  },
+);
