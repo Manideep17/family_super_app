@@ -34,7 +34,10 @@ android {
 
     defaultConfig {
         applicationId = "com.family.superapp"
-        minSdk = maxOf(flutter.minSdkVersion, 24)
+        // google_mlkit_entity_extraction's underlying entity-extraction library
+        // requires minSdk 26 (was 24) — raised to match, core library
+        // desugaring above already covers java.time APIs on API < 26 callers.
+        minSdk = maxOf(flutter.minSdkVersion, 26)
         targetSdk = flutter.targetSdkVersion
         versionCode = flutter.versionCode
         versionName = flutter.versionName
