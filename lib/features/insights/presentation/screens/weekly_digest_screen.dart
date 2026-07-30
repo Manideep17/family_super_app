@@ -3,6 +3,8 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../../../../core/ai/family_digest_service.dart';
 import '../../../../core/config/app_flags.dart';
+import '../../../billing/presentation/providers/billing_providers.dart';
+import '../../../billing/presentation/screens/paywall_screen.dart';
 import '../../../calendar/presentation/providers/calendar_providers.dart';
 import '../../../diary/presentation/providers/diary_providers.dart';
 import '../../../family/presentation/providers/family_providers.dart';
@@ -31,7 +33,7 @@ class _WeeklyDigestScreenState extends ConsumerState<WeeklyDigestScreen> {
   @override
   void initState() {
     super.initState();
-    if (AppFlags.aiDigestEnabled) {
+    if (AppFlags.aiDigestEnabled && ref.read(isPremiumProvider)) {
       WidgetsBinding.instance.addPostFrameCallback((_) => _generate());
     }
   }
@@ -93,12 +95,15 @@ class _WeeklyDigestScreenState extends ConsumerState<WeeklyDigestScreen> {
   @override
   Widget build(BuildContext context) {
     final scheme = Theme.of(context).colorScheme;
+    final isPremium = ref.watch(isPremiumProvider);
 
     return Scaffold(
       appBar: AppBar(title: const Text('Weekly family digest')),
       body: !AppFlags.aiDigestEnabled
           ? _NotConfigured(scheme: scheme)
-          : Padding(
+          : !isPremium
+              ? _PremiumRequired(scheme: scheme)
+              : Padding(
               padding: const EdgeInsets.all(16),
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.stretch,
@@ -158,6 +163,41 @@ class _WeeklyDigestScreenState extends ConsumerState<WeeklyDigestScreen> {
                 ],
               ),
             ),
+    );
+  }
+}
+
+class _PremiumRequired extends StatelessWidget {
+  const _PremiumRequired({required this.scheme});
+  final ColorScheme scheme;
+
+  @override
+  Widget build(BuildContext context) {
+    return Center(
+      child: Padding(
+        padding: const EdgeInsets.all(32),
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            Icon(Icons.workspace_premium_rounded, size: 56, color: scheme.primary),
+            const SizedBox(height: 16),
+            Text('Premium feature', style: Theme.of(context).textTheme.titleLarge),
+            const SizedBox(height: 8),
+            Text(
+              'The AI weekly digest is part of FAM Premium.',
+              textAlign: TextAlign.center,
+              style: TextStyle(color: scheme.onSurfaceVariant),
+            ),
+            const SizedBox(height: 20),
+            FilledButton(
+              onPressed: () => Navigator.of(context).push(
+                MaterialPageRoute<void>(builder: (_) => const PaywallScreen()),
+              ),
+              child: const Text('See Premium'),
+            ),
+          ],
+        ),
+      ),
     );
   }
 }

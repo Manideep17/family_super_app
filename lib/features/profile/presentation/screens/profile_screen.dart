@@ -9,6 +9,8 @@ import 'package:image_picker/image_picker.dart';
 import '../../../../core/config/app_flags.dart';
 import '../../../../core/router/app_router.dart';
 import '../../../auth/data/auth_repository_impl.dart' show FamilyAuthException;
+import '../../../billing/presentation/providers/billing_providers.dart';
+import '../../../billing/presentation/screens/paywall_screen.dart';
 import '../../../family/presentation/providers/family_providers.dart';
 import '../../../gamification/domain/title_catalog.dart';
 import '../../../gamification/presentation/providers/gamification_providers.dart';
@@ -120,6 +122,25 @@ class ProfileScreen extends ConsumerWidget {
             title: Text('Family status'),
             subtitle: Text('Member'),
           ),
+          if (AppFlags.billingEnabled)
+            ListTile(
+              leading: Icon(
+                Icons.workspace_premium_rounded,
+                color: ref.watch(isPremiumProvider) ? scheme.primary : null,
+              ),
+              title: Text(
+                ref.watch(isPremiumProvider) ? 'FAM Premium' : 'Go Premium',
+              ),
+              subtitle: Text(
+                ref.watch(isPremiumProvider)
+                    ? 'Your family has Premium — thank you!'
+                    : 'AI digest, more vault storage, and more',
+              ),
+              trailing: const Icon(Icons.chevron_right_rounded),
+              onTap: () => Navigator.of(context).push(
+                MaterialPageRoute<void>(builder: (_) => const PaywallScreen()),
+              ),
+            ),
           statsAsync.when(
             loading: () => const ListTile(
               leading: Icon(Icons.stars_outlined),

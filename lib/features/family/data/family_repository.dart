@@ -356,6 +356,9 @@ class FamilyRepository {
       pinnedAnnouncement: (d['pinnedAnnouncement'] as String? ?? '').trim(),
       ownerUid: (d['ownerUid'] as String? ?? d['createdBy'] as String? ?? '').trim(),
       dailyDigestOptIn: d['dailyDigestOptIn'] == true,
+      subscriptionActive: d['subscriptionActive'] == true,
+      subscriptionProductId: (d['subscriptionProductId'] as String? ?? '').trim(),
+      subscriptionExpiresAt: (d['subscriptionExpiresAt'] as Timestamp?)?.toDate(),
     );
   }
 

@@ -239,6 +239,16 @@ service cloud.firestore {
       // are restricted to memberCount adjustments; renaming the family is
       // also OK from any member.
       allow read: if isSignedIn();
+      // IMPORTANT — billing: subscriptionActive / subscriptionProductId /
+      // subscriptionExpiresAt must NEVER be added to any affectedKeys()
+      // allowlist below. They're written only by the admin SDK inside
+      // verifySubscriptionPurchase (functions/src/billing.ts), which
+      // bypasses these rules entirely. Every branch here is an explicit
+      // hasOnly([...]) allowlist rather than a denylist specifically so a
+      // client can't smuggle a subscription field into an otherwise-valid
+      // update (e.g. alongside a `name` rename) — adding those field names
+      // to any hasOnly([...]) below would let any family member grant
+      // themselves premium for free.
       allow update: if (
           // Members may rename family or adjust count; pinned announcement is owner-only.
           isMemberOf(fid)

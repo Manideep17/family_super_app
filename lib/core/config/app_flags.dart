@@ -42,4 +42,23 @@ class AppFlags {
       oneSignalAppId.isNotEmpty &&
       pushWorkerEndpoint.isNotEmpty &&
       pushWorkerKey.isNotEmpty;
+
+  /// Play Console subscription product id for the monthly premium plan (AI
+  /// digest, extra vault storage, AI quiz). See docs/BILLING_SETUP.md for
+  /// creating this exact product id in Play Console.
+  static const String premiumMonthlyProductId = String.fromEnvironment(
+    'PREMIUM_MONTHLY_PRODUCT_ID',
+    defaultValue: 'fam_premium_monthly',
+  );
+
+  /// Purchases can't be verified without the `verifySubscriptionPurchase`
+  /// Cloud Function deployed, so the paywall stays hidden behind the same
+  /// flag as other Functions-backed features until that's live — never let
+  /// someone pay before the unlock path actually works.
+  static bool get billingEnabled => functionsEnabled;
+
+  /// Free-tier vault cap (item count, not bytes — simplest thing to check
+  /// without tracking cumulative upload size). Premium families skip this
+  /// check entirely; see Family.isPremium.
+  static const int freeVaultItemLimit = 200;
 }

@@ -7,6 +7,8 @@ import 'package:image_picker/image_picker.dart';
 
 import '../../../../core/config/app_flags.dart';
 import '../../../../core/media/text_extraction_service.dart';
+import '../../../billing/presentation/providers/billing_providers.dart';
+import '../../../billing/presentation/screens/paywall_screen.dart';
 import '../../../family/domain/entities/family_member.dart';
 import '../../../family/presentation/providers/family_providers.dart';
 import '../../domain/entities/vault_item.dart';
@@ -31,6 +33,36 @@ class VaultScreen extends ConsumerStatefulWidget {
           content: Text('Uploads are supported on iOS/Android in this build.'),
         ),
       );
+      return;
+    }
+    final currentCount = (ref.read(vaultItemsProvider).valueOrNull ?? const []).length;
+    final isPremium = ref.read(isPremiumProvider);
+    if (!isPremium && currentCount >= AppFlags.freeVaultItemLimit) {
+      final upgrade = await showDialog<bool>(
+        context: context,
+        builder: (ctx) => AlertDialog(
+          title: const Text('Vault is full for the free plan'),
+          content: Text(
+            'Free families can keep up to ${AppFlags.freeVaultItemLimit} photos/videos '
+            'in the vault. FAM Premium removes that cap.',
+          ),
+          actions: [
+            TextButton(
+              onPressed: () => Navigator.pop(ctx, false),
+              child: const Text('Not now'),
+            ),
+            FilledButton(
+              onPressed: () => Navigator.pop(ctx, true),
+              child: const Text('See Premium'),
+            ),
+          ],
+        ),
+      );
+      if (upgrade == true && context.mounted) {
+        Navigator.of(context).push(
+          MaterialPageRoute<void>(builder: (_) => const PaywallScreen()),
+        );
+      }
       return;
     }
     final picker = ImagePicker();
