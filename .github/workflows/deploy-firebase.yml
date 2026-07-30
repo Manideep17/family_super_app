@@ -56,4 +56,5 @@ jobs:
           firebase deploy \
             --only "${{ inputs.targets }}" \
             --project family-super-app-3bf1c \
-            --non-interactive
+            --non-interactive \
+            --force
