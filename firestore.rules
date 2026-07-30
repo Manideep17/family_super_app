@@ -65,15 +65,19 @@ service cloud.firestore {
     // for collection-group reads on `reports` docs that store `familyId`.
     function familyOwnerUidForFid(fid) {
       let path = /databases/$(database)/documents/families/$(fid);
-      if (!exists(path)) {
-        return '';
-      }
-      let d = get(path).data;
-      return d.keys().hasAny(['ownerUid'])
-        && d.ownerUid is string
-        && d.ownerUid.size() > 0
-        ? d.ownerUid
-        : d.createdBy;
+      // Rules functions can't use `if` as a statement — only expressions —
+      // so the exists() guard has to be the outer ternary. get() calls on
+      // the same path within one evaluation are cached, so repeating
+      // `get(path).data` below costs one real read, not four.
+      return !exists(path)
+        ? ''
+        : (
+          get(path).data.keys().hasAny(['ownerUid'])
+            && get(path).data.ownerUid is string
+            && get(path).data.ownerUid.size() > 0
+            ? get(path).data.ownerUid
+            : get(path).data.createdBy
+        );
     }
 
     function validSizedString(v, min, max) {
@@ -101,15 +105,15 @@ service cloud.firestore {
 
       function familyDocOwnerUid(fid) {
         let path = /databases/$(database)/documents/families/$(fid);
-        if (!exists(path)) {
-          return '';
-        }
-        let d = get(path).data;
-        return d.keys().hasAny(['ownerUid'])
-          && d.ownerUid is string
-          && d.ownerUid.size() > 0
-          ? d.ownerUid
-          : d.createdBy;
+        return !exists(path)
+          ? ''
+          : (
+            get(path).data.keys().hasAny(['ownerUid'])
+              && get(path).data.ownerUid is string
+              && get(path).data.ownerUid.size() > 0
+              ? get(path).data.ownerUid
+              : get(path).data.createdBy
+          );
       }
 
       function pollDocData(fid, pollId) {
