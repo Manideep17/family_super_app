@@ -124,7 +124,79 @@ mean in practice for 2026 rather than 2018:
    a real ceiling once you're past initial testing; older relatives are
    disproportionately on iPhone or want a browser view.
 
-## 6. The wellbeing line — worth stating explicitly
+## 6. V2 — the product-owner rewrite (UI/UX + curation, not just new features)
+
+Everything above assumes FAM keeps adding surfaces. Taking full ownership
+of the product instead of just the roadmap, the honest read is that FAM
+already has too many feature surfaces and no single daily ritual — twelve-
+plus distinct screens (chat, diary, tasks, calendar, vault, streaks,
+points, weekly champion, AI quiz, festivals, polls, predictions x2, reels,
+creative challenges, time-travel entries) with no clear answer to "what do
+I open this app for, every day, specifically." Adding more toys makes that
+worse, not better. The following is what changes if the goal is a product
+people actually can't put down, not a longer feature list.
+
+**Curate, don't just add.**
+
+- `predictions` and `future_predictions` are the same idea shipped twice —
+  collapse into one.
+- Reels, creative challenges, and time-travel entries read like generic
+  "gamification playbook" additions rather than things a specific family
+  asked for. Instrument usage for a month before investing further; be
+  willing to sunset whichever nobody touches. Every screen kept competes
+  for attention with the two or three things that are FAM's actual edge —
+  diary/vault/AI-digest and the festival layer deserve the disproportionate
+  investment, not equal billing with everything else.
+
+**One weekly ritual, designed on purpose, instead of an always-on feature
+list.** Turn the AI digest from "generate anytime" into a scheduled Sunday-
+evening moment — a push notification ("Your week is ready"), and a short
+narrated audio recap (Gemini writes it, on-device or cloud TTS reads it)
+built from the week's tasks, photos, and diary entries, not just a text
+card. Every other feature (tasks completed, photos added, streaks) becomes
+"material" for that one recurring appointment. That's the single moment
+every family member has a shared reason to open the app on the same day —
+the actual daily-habit hook FAM is currently missing.
+
+**Feed over tabs.** Replace the tab-per-feature navigation (calendar tab,
+vault tab, tasks tab, chat tab) with a single scrollable family timeline —
+new photo, completed task, diary entry, and poll result interleaved, the
+way a social feed works, instead of making someone check six tabs to find
+out what's new. Tab navigation makes the user do the "what's new" work
+themselves every time; a feed does it for them, and that friction is
+exactly where "I'll check it later" becomes "I forgot this app exists."
+
+**Design for the whole family, not the average phone user.** Hindi/regional
+language support and a genuinely simplified mode (larger text, fewer
+icons, voice-first input everywhere, not just chat) as core, not an
+accessibility afterthought — the pitch is "the whole family," and
+multi-generational apps usually fail grandparents first by assuming one
+language and one comfort level with apps.
+
+**Live outside the app, not just inside it.** A home-screen widget — latest
+family photo, today's streak status — needs zero taps to deliver value.
+Locket and BeReal's actual insight is that the widget is the trigger; the
+app itself is secondary. FAM should be visible on the home screen, not
+just in the app drawer.
+
+**Rethink what premium gates.** Gating vault storage and the AI digest
+behind a single payer's subscription means only the paying parent gets the
+good experience, while the people who create the actual network effect
+(the rest of the family) get the lesser version. Premium should sell
+extras (deeper AI features, unlimited history, richer recaps) rather than
+gate the core "does everyone in this family want to open this" experience
+— growth here depends on every member wanting in, not just the one with a
+card on file.
+
+**State the trust promise out loud.** "Private, no ads, nothing sold, just
+your family" should be a visible moment in the product — literally a
+screen during family setup — not just a privacy-policy footnote. This is
+the one differentiator competitors can't copy without abandoning their own
+business model (most "free" family/location apps monetize behavioral
+data), and making it visible is what turns it from a compliance detail into
+the actual brand.
+
+## 7. The wellbeing line — worth stating explicitly
 
 "Most addictive app ever" is the right ambition stated the wrong way for
 this category. This is a private family app, likely used by children — the
