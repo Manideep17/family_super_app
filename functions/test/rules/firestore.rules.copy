@@ -1,0 +1,4 @@
+This stray file could not be deleted from the sandbox (filesystem
+permission quirk). It is unused — rules.test.mjs reads the real
+firestore.rules directly from the repo root at runtime. Safe to delete
+manually.

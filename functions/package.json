@@ -15,7 +15,9 @@
     "seed:demo": "node scripts/seed_demo_data.js",
     "seed:dashboard-owner": "node scripts/seed_dashboard_owner_allowlist.js",
     "deploy": "firebase deploy --only functions",
-    "logs": "firebase functions:log"
+    "logs": "firebase functions:log",
+    "test": "npm run build && node test/logic.test.js",
+    "test:rules": "firebase emulators:exec --only firestore \"node --experimental-vm-modules test/rules/rules.test.mjs\""
   },
   "dependencies": {
     "firebase-admin": "^12.6.0",
@@ -23,7 +25,8 @@
     "googleapis": "^144.0.0"
   },
   "devDependencies": {
-    "typescript": "^5.5.4"
+    "typescript": "^5.5.4",
+    "@firebase/rules-unit-testing": "^3.0.4"
   },
   "private": true
 }

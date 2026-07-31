@@ -45,6 +45,10 @@ jobs:
         working-directory: functions
         run: npm ci
 
+      - name: Run function logic tests
+        working-directory: functions
+        run: npm test
+
       - name: Authenticate to Google Cloud
         uses: google-github-actions/auth@v2
         with:
