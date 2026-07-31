@@ -60,7 +60,7 @@ class SharedListDetailScreen extends ConsumerWidget {
         ],
       ),
       floatingActionButton: FloatingActionButton(
-        onPressed: () => _showAddItemSheet(context, ref),
+        onPressed: () => _showAddItemSheet(context, ref, listId),
         child: const Icon(Icons.add_rounded),
       ),
       body: itemsAsync.when(
@@ -109,6 +109,7 @@ class SharedListDetailScreen extends ConsumerWidget {
   static Future<void> _showAddItemSheet(
     BuildContext context,
     WidgetRef ref,
+    String listId,
   ) async {
     final ctrl = TextEditingController();
     await showModalBottomSheet<void>(

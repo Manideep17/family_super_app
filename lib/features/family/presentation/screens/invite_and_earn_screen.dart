@@ -44,12 +44,13 @@ class _InviteAndEarnScreenState extends ConsumerState<InviteAndEarnScreen> {
 
   Future<void> _share(String code) async {
     AppAnalytics.logEvent('referral_code_shared');
-    await SharePlus.instance.share(
-      ShareParams(
-        text: 'Join me on FAM, our family\'s private app! Use my invite '
-            'code $code when you set up your own family and we both get a '
-            'week of Premium free 🎉',
-      ),
+    // `share_plus` 10.x (this project's pinned major version) only has the
+    // static Share.share() API -- SharePlus.instance.share(ShareParams(...))
+    // was introduced in a later major version than what's pinned here.
+    await Share.share(
+      'Join me on FAM, our family\'s private app! Use my invite '
+      'code $code when you set up your own family and we both get a '
+      'week of Premium free 🎉',
     );
   }
 
