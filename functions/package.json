@@ -17,7 +17,7 @@
     "deploy": "firebase deploy --only functions",
     "logs": "firebase functions:log",
     "test": "npm run build && node test/logic.test.js",
-    "test:rules": "firebase emulators:exec --only firestore \"node --experimental-vm-modules test/rules/rules.test.mjs\""
+    "test:rules": "firebase emulators:exec --only firestore \"node test/rules/rules.test.mjs\""
   },
   "dependencies": {
     "firebase-admin": "^12.6.0",
