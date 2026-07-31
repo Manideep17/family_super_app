@@ -11,10 +11,15 @@ final userProfileRepositoryProvider = Provider<UserProfileRepository>((ref) {
   return UserProfileRepositoryImpl(scope: scope);
 });
 
+/// Reacts to `authStateChanges()` (not just a one-time `currentUser` read)
+/// so that signing out and a different user signing back in on the same
+/// app session re-subscribes for *that* user's profile instead of getting
+/// stuck on the previous user's stream — see `FamilyRepository.watchMyFamilyId`
+/// for the same fix applied to the family-id stream.
 final myUserProfileProvider = StreamProvider<FamilyUserProfile?>((ref) {
-  final uid = FirebaseAuth.instance.currentUser?.uid;
-  if (uid == null) {
-    return Stream.value(null);
-  }
-  return ref.watch(userProfileRepositoryProvider).watchProfile(uid);
+  final repo = ref.watch(userProfileRepositoryProvider);
+  return FirebaseAuth.instance.authStateChanges().asyncExpand((user) {
+    if (user == null) return Stream.value(null);
+    return repo.watchProfile(user.uid);
+  });
 });

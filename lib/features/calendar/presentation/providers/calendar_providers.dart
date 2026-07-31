@@ -22,6 +22,7 @@ final calendarEventsProvider = StreamProvider<List<CalendarEvent>>((ref) {
   return ref.watch(calendarRepositoryProvider).watchEvents();
 });
 
-final calendarEventProvider = StreamProvider.family<CalendarEvent?, String>((ref, id) {
+final calendarEventProvider =
+    StreamProvider.autoDispose.family<CalendarEvent?, String>((ref, id) {
   return ref.watch(calendarRepositoryProvider).watchEvent(id);
 });

@@ -12,7 +12,7 @@
 | **Authentication** | Email/Password + Google provider |
 | **Cloud Firestore** | Chat, diary, tasks, profiles |
 | **Storage (optional)** | Legacy media path; current app prefers Cloudinary for no-cost uploads |
-| **Cloud Functions (optional)** | Advanced automation only; app has Spark-safe fallbacks |
+| **Cloud Functions (required for sign-up)** | `resolveJoinCode`/`allocateJoinCode` (join-code lookup/allocation) must be deployed before anyone can create or join a family — see docs/PRODUCT_STRATEGY_AND_ENGAGEMENT.md bug-fix notes. Everything else Functions-related stays optional with Spark-safe fallbacks. |
 | **Cloud Messaging** | Push notifications |
 
 ### Authentication

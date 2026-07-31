@@ -23,6 +23,6 @@ final myTasksStreamProvider = StreamProvider<List<FamilyTask>>((ref) {
 });
 
 final taskDetailProvider =
-    StreamProvider.family<FamilyTask?, String>((ref, id) {
+    StreamProvider.autoDispose.family<FamilyTask?, String>((ref, id) {
   return ref.watch(tasksRepositoryProvider).watchTask(id);
 });

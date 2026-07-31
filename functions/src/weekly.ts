@@ -34,33 +34,64 @@ export const weeklyChampionRollup = onSchedule(
     const families = await db.collection("families").get();
     for (const familyDoc of families.docs) {
       const familyId = familyDoc.id;
-      const snap = await familyDoc.ref
-        .collection("member_stats")
-        .orderBy("points", "desc")
-        .limit(1)
-        .get();
-      if (snap.empty) continue;
+      try {
+        const statsSnap = await familyDoc.ref.collection("member_stats").get();
+        if (statsSnap.empty) continue;
 
-      const top = snap.docs[0];
-      const data = top.data();
-      const wid = weekId(new Date());
-      const champion = {
-        weekId: wid,
-        championUid: top.id,
-        championName: data.displayName ?? data.email ?? "Family",
-        championPoints: Number(data.points ?? 0),
-        updatedAt: admin.firestore.FieldValue.serverTimestamp(),
-      };
-      await familyDoc.ref
-        .collection("gamification")
-        .doc("weekly_champion")
-        .set(champion, { merge: true });
+        // Champion is based on THIS week's points, not lifetime total.
+        // `points` only ever goes up (task approvals, games, etc. all
+        // increment it), so without a per-week baseline the "weekly"
+        // champion was really just whoever has the highest all-time score
+        // — someone who was fully inactive that week could still win.
+        // `weekStartPoints` snapshots each member's total at the start of
+        // the week; this week's score is the delta since then.
+        let bestDoc: FirebaseFirestore.QueryDocumentSnapshot | null = null;
+        let bestDelta = -Infinity;
+        for (const doc of statsSnap.docs) {
+          const d = doc.data();
+          const total = Number(d.points ?? 0);
+          const weekStart = Number(d.weekStartPoints ?? 0);
+          const delta = total - weekStart;
+          if (delta > bestDelta) {
+            bestDelta = delta;
+            bestDoc = doc;
+          }
+        }
+        if (!bestDoc) continue;
 
-      await sendToFamily(familyId, {
-        title: "Family champion of the week 🏆",
-        body: `${champion.championName} — ${champion.championPoints} pts`,
-        data: { route: "/home", tab: "leaderboard" },
-      });
+        const data = bestDoc.data();
+        const wid = weekId(new Date());
+        const champion = {
+          weekId: wid,
+          championUid: bestDoc.id,
+          championName: data.displayName ?? data.email ?? "Family",
+          championPoints: Math.max(0, bestDelta),
+          updatedAt: admin.firestore.FieldValue.serverTimestamp(),
+        };
+        await familyDoc.ref
+          .collection("gamification")
+          .doc("weekly_champion")
+          .set(champion, { merge: true });
+
+        // Reset every member's baseline for the week that's just starting.
+        const batch = db.batch();
+        for (const doc of statsSnap.docs) {
+          batch.set(
+            doc.ref,
+            { weekStartPoints: Number(doc.data().points ?? 0) },
+            { merge: true },
+          );
+        }
+        await batch.commit();
+
+        await sendToFamily(familyId, {
+          title: "Family champion of the week 🏆",
+          body: `${champion.championName} — ${champion.championPoints} pts this week`,
+          data: { route: "/home", tab: "leaderboard" },
+        });
+      } catch (e) {
+        logger.warn("weeklyChampionRollup: failed for family", { familyId, e });
+      }
     }
   },
 );
@@ -80,55 +111,59 @@ export const bestMomentsRollup = onSchedule(
 
     for (const familyDoc of families.docs) {
       const familyId = familyDoc.id;
-      const snap = await familyDoc.ref
-        .collection("stories")
-        .where("createdAt", ">=", cutoff)
-        .get();
-      if (snap.empty) {
-        logger.info("bestMomentsRollup: no stories", { familyId });
-        continue;
-      }
+      try {
+        const snap = await familyDoc.ref
+          .collection("stories")
+          .where("createdAt", ">=", cutoff)
+          .get();
+        if (snap.empty) {
+          logger.info("bestMomentsRollup: no stories", { familyId });
+          continue;
+        }
 
-      const ranked = snap.docs
-        .map((doc) => {
-          const d = doc.data();
-          const reactions = d.reactions ?? {};
-          const reactionCount = Object.keys(reactions).length;
-          const commentCount = Number(d.commentCount ?? 0);
-          const score = reactionCount * 2 + commentCount;
-          const images = Array.isArray(d.imageUrls) ? d.imageUrls : [];
-          return {
-            id: doc.id,
-            title: d.title ?? "",
-            body: d.body ?? "",
-            mood: d.mood ?? "happy",
-            authorName: d.authorName ?? "",
-            reactions: reactionCount,
-            commentCount,
-            firstImageUrl: images.length > 0 ? String(images[0]) : null,
-            createdAt: d.createdAt ?? null,
-            score,
-          };
-        })
-        .sort((a, b) => b.score - a.score)
-        .slice(0, 3);
+        const ranked = snap.docs
+          .map((doc) => {
+            const d = doc.data();
+            const reactions = d.reactions ?? {};
+            const reactionCount = Object.keys(reactions).length;
+            const commentCount = Number(d.commentCount ?? 0);
+            const score = reactionCount * 2 + commentCount;
+            const images = Array.isArray(d.imageUrls) ? d.imageUrls : [];
+            return {
+              id: doc.id,
+              title: d.title ?? "",
+              body: d.body ?? "",
+              mood: d.mood ?? "happy",
+              authorName: d.authorName ?? "",
+              reactions: reactionCount,
+              commentCount,
+              firstImageUrl: images.length > 0 ? String(images[0]) : null,
+              createdAt: d.createdAt ?? null,
+              score,
+            };
+          })
+          .sort((a, b) => b.score - a.score)
+          .slice(0, 3);
 
-      const wid = weekId(new Date());
-      await familyDoc.ref.collection("best_moments").doc(wid).set(
-        {
-          weekId: wid,
-          generatedAt: admin.firestore.FieldValue.serverTimestamp(),
-          stories: ranked.map(({ score: _score, ...rest }) => rest),
-        },
-        { merge: true },
-      );
+        const wid = weekId(new Date());
+        await familyDoc.ref.collection("best_moments").doc(wid).set(
+          {
+            weekId: wid,
+            generatedAt: admin.firestore.FieldValue.serverTimestamp(),
+            stories: ranked.map(({ score: _score, ...rest }) => rest),
+          },
+          { merge: true },
+        );
 
-      if (ranked.length > 0) {
-        await sendToFamily(familyId, {
-          title: "Best moments of the week ✨",
-          body: `${ranked.length} memor${ranked.length === 1 ? "y" : "ies"} from your family`,
-          data: { route: "/home", tab: "insights" },
-        });
+        if (ranked.length > 0) {
+          await sendToFamily(familyId, {
+            title: "Best moments of the week ✨",
+            body: `${ranked.length} memor${ranked.length === 1 ? "y" : "ies"} from your family`,
+            data: { route: "/home", tab: "insights" },
+          });
+        }
+      } catch (e) {
+        logger.warn("bestMomentsRollup: failed for family", { familyId, e });
       }
     }
   },

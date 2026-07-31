@@ -16,3 +16,4 @@ export { scheduledFamilyDigest, weeklyDigestReady } from "./reminders";
 export { auditMemberStatsWrite } from "./stats_audit";
 export { deleteAccount } from "./account";
 export { verifySubscriptionPurchase, refreshSubscriptions } from "./billing";
+export { resolveJoinCode, allocateJoinCode } from "./join_codes";

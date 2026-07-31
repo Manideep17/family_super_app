@@ -1,6 +1,5 @@
-import 'dart:math';
-
 import 'package:cloud_firestore/cloud_firestore.dart';
+import 'package:cloud_functions/cloud_functions.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 
 import '../../auth/domain/entities/family_role.dart';
@@ -39,13 +38,21 @@ class FamilyRepository {
 
   /// Streams the current user's `users/{uid}.familyId`. Null until the user
   /// has created or joined a family.
+  ///
+  /// Reacts to `authStateChanges()` (not just a one-time `currentUser`
+  /// read) so that signing out and a different user signing back in on the
+  /// same app session re-subscribes to *that* user's doc instead of
+  /// getting stuck on a permission-denied error against the previous
+  /// user's uid — mirrors the same pattern already used by the router's
+  /// `_routerFamilyIdProvider` (see core/router/app_router.dart).
   Stream<String?> watchMyFamilyId() {
-    final u = _auth.currentUser;
-    if (u == null) return Stream.value(null);
-    return _users.doc(u.uid).snapshots().map((s) {
-      if (!s.exists) return null;
-      final fid = s.data()?['familyId'];
-      return fid is String && fid.isNotEmpty ? fid : null;
+    return _auth.authStateChanges().asyncExpand((user) {
+      if (user == null) return Stream.value(null);
+      return _users.doc(user.uid).snapshots().map((s) {
+        if (!s.exists) return null;
+        final fid = s.data()?['familyId'];
+        return fid is String && fid.isNotEmpty ? fid : null;
+      });
     });
   }
 
@@ -93,7 +100,7 @@ class FamilyRepository {
       throw ArgumentError('Add your display name.');
     }
 
-    final code = await _generateUniqueJoinCode();
+    final code = await _allocateJoinCode();
     final familyRef = _families.doc();
     final memberRef = familyRef.collection('members').doc(u.uid);
     final userRef = _users.doc(u.uid);
@@ -154,12 +161,26 @@ class FamilyRepository {
       throw ArgumentError('Invite codes are 6 characters.');
     }
 
-    final query =
-        await _families.where('joinCode', isEqualTo: normalized).limit(1).get();
-    if (query.docs.isEmpty) {
+    // `families` no longer allows client-side queries (see firestore.rules —
+    // `joinCode` is a short, human-typed string that must never be
+    // brute-forceable via a `where(...)` query), so lookup goes through a
+    // Cloud Function running with the admin SDK instead.
+    String resolvedFamilyId;
+    try {
+      final result = await FirebaseFunctions.instance
+          .httpsCallable('resolveJoinCode')
+          .call<Map<String, dynamic>>({'joinCode': normalized});
+      resolvedFamilyId = result.data['familyId'] as String? ?? '';
+    } on FirebaseFunctionsException catch (e) {
+      if (e.code == 'not-found') {
+        throw StateError('No family found for that code.');
+      }
+      rethrow;
+    }
+    if (resolvedFamilyId.isEmpty) {
       throw StateError('No family found for that code.');
     }
-    final familyRef = query.docs.first.reference;
+    final familyRef = _families.doc(resolvedFamilyId);
     final memberRef = familyRef.collection('members').doc(u.uid);
     final userRef = _users.doc(u.uid);
 
@@ -323,20 +344,19 @@ class FamilyRepository {
 
   // ───────────────────────── Helpers ─────────────────────────
 
-  /// Generates a 6-char alphanumeric join code that isn't already taken.
-  Future<String> _generateUniqueJoinCode() async {
-    const alphabet = 'ABCDEFGHJKLMNPQRSTUVWXYZ23456789';
-    final rnd = Random.secure();
-    for (var attempt = 0; attempt < 8; attempt++) {
-      final code = List.generate(
-        6,
-        (_) => alphabet[rnd.nextInt(alphabet.length)],
-      ).join();
-      final existing =
-          await _families.where('joinCode', isEqualTo: code).limit(1).get();
-      if (existing.docs.isEmpty) return code;
+  /// Allocates a fresh, collision-checked 6-char join code via the
+  /// `allocateJoinCode` Cloud Function (admin SDK) — `families` no longer
+  /// allows client-side queries (see firestore.rules), so uniqueness can't
+  /// be checked directly from the client anymore.
+  Future<String> _allocateJoinCode() async {
+    final result = await FirebaseFunctions.instance
+        .httpsCallable('allocateJoinCode')
+        .call<Map<String, dynamic>>();
+    final code = result.data['joinCode'] as String?;
+    if (code == null || code.isEmpty) {
+      throw StateError('Could not allocate a join code, try again.');
     }
-    throw StateError('Could not allocate a join code, try again.');
+    return code;
   }
 
   Family? _familyFromDoc(DocumentSnapshot<Map<String, dynamic>> doc) {

@@ -237,12 +237,20 @@ service cloud.firestore {
           || request.resource.data.ownerUid == request.auth.uid
         );
 
-      // Reads require sign-in so users can discover a family by joinCode.
-      // Feature data still stays private under member-guarded subcollections.
-      // Updates are limited to existing members. Updates from clients
-      // are restricted to memberCount adjustments; renaming the family is
-      // also OK from any member.
-      allow read: if isSignedIn();
+      // `get` (single doc, by its real ~20-char random id) stays open to
+      // any signed-in user — the join transaction reads the family here
+      // *before* the new member doc exists, so this can't require
+      // isMemberOf(fid) without breaking joining itself. `list` (collection
+      // queries) is fully locked down: the only query that ever existed
+      // here was `where('joinCode', '==', code)`, and a 6-character,
+      // human-typed code is exactly the kind of value that must never be
+      // brute-forceable/enumerable via a client-side query. That lookup
+      // (and unique-code allocation on create) now goes through the
+      // `resolveJoinCode`/`allocateJoinCode` Cloud Functions (admin SDK,
+      // functions/src/join_codes.ts) instead. Feature data still stays
+      // private under member-guarded subcollections regardless.
+      allow get: if isSignedIn();
+      allow list: if false;
       // IMPORTANT — billing: subscriptionActive / subscriptionProductId /
       // subscriptionExpiresAt must NEVER be added to any affectedKeys()
       // allowlist below. They're written only by the admin SDK inside
@@ -283,8 +291,14 @@ service cloud.firestore {
           && request.resource.data.ownerUid != request.auth.uid
           && exists(/databases/$(database)/documents/families/$(fid)/members/$(request.resource.data.ownerUid))
         ) || (
-          // New joiner path: allow atomic +1 memberCount during join transaction.
+          // New joiner path: allow atomic +1 memberCount during join
+          // transaction. Requires the caller's own members/{uid} doc to
+          // already exist — the join transaction always creates that doc
+          // *before* this update in the same atomic transaction, so this
+          // is satisfied for a real join but blocks any signed-in stranger
+          // from inflating memberCount on a family they never joined.
           isSignedIn()
+          && exists(/databases/$(database)/documents/families/$(fid)/members/$(request.auth.uid))
           && request.resource.data.diff(resource.data).affectedKeys()
             .hasOnly(['memberCount', 'updatedAt'])
           && request.resource.data.memberCount == resource.data.memberCount + 1
@@ -304,7 +318,16 @@ service cloud.firestore {
 
         // Reads / updates / deletes require membership (or dashboard owner read).
         allow read: if canReadFamilyData(fid);
-        allow update: if isMemberOf(fid) && request.auth.uid == uid;
+        // Self-editable profile fields only — deliberately excludes `role`,
+        // `uid`, and `email` so a member can never grant themselves a
+        // different role or spoof their identity via a client write.
+        allow update: if isMemberOf(fid)
+          && request.auth.uid == uid
+          && request.resource.data.diff(resource.data).affectedKeys()
+            .hasOnly([
+              'displayName', 'greeting', 'avatarUrl',
+              'onesignalSubscriptionId', 'onesignalUpdatedAt',
+            ]);
         allow delete: if isSignedIn() && request.auth.uid == uid;
       }
 
@@ -401,6 +424,14 @@ service cloud.firestore {
         allow update: if isMemberOf(fid)
           && request.resource.data.assignerUid == resource.data.assignerUid
           && request.resource.data.assigneeUid == resource.data.assigneeUid
+          // Status-transition fields only — rewardPoints, title, and
+          // description are locked after create so neither party can
+          // inflate the reward or rewrite the task once it's live.
+          && request.resource.data.diff(resource.data).affectedKeys()
+            .hasOnly([
+              'status', 'submittedNote', 'submittedAt',
+              'resolvedAt', 'rejectedReason',
+            ])
           && (
             resource.data.assigneeUid == request.auth.uid
             || resource.data.assignerUid == request.auth.uid
@@ -447,7 +478,19 @@ service cloud.firestore {
           && statIncreaseOk('points', 250)
           && statJumpOk('famCoins', 200, 500)
           && statIncreaseOk('storiesCreated', 20)
-          && statIncreaseOk('gamesWon', 20);
+          && statIncreaseOk('gamesWon', 20)
+          // The per-write deltas above only cap a single write — nothing
+          // stopped many rapid legitimate-looking writes from farming past
+          // them cumulatively. `lastStatsWriteAt` (set by every
+          // point-awarding client write — see
+          // GamificationRepositoryImpl) lets this enforce a floor on how
+          // often this doc can be written at all. Lenient by design: if no
+          // prior write ever set the field, this never blocks anything.
+          && (
+            !resource.data.keys().hasAny(['lastStatsWriteAt'])
+            || !(resource.data.lastStatsWriteAt is timestamp)
+            || request.time > resource.data.lastStatsWriteAt + duration.value(1, 's')
+          );
         allow delete: if false;
       }
 

@@ -33,16 +33,18 @@ class FamilyFeedScreen extends ConsumerWidget {
     final pollsAsync = ref.watch(familyPollsStreamProvider);
     final eventsAsync = ref.watch(calendarEventsProvider);
 
-    final stillLoadingEverything = storiesAsync.isLoading &&
-        !storiesAsync.hasValue &&
-        tasksAsync.isLoading &&
-        !tasksAsync.hasValue &&
-        vaultAsync.isLoading &&
-        !vaultAsync.hasValue &&
-        pollsAsync.isLoading &&
-        !pollsAsync.hasValue &&
-        eventsAsync.isLoading &&
-        !eventsAsync.hasValue;
+    // Keep the spinner up until every source has *settled* (either got data
+    // or errored) — not until all five happen to be loading simultaneously.
+    // With AND across sources, the instant any single source resolved (even
+    // to an error) the whole expression flipped false and the feed could
+    // flash "Nothing yet" while the other four hadn't loaded yet. OR fixes
+    // that: as long as even one source is still genuinely mid-flight, keep
+    // waiting.
+    final stillLoadingEverything = (storiesAsync.isLoading && !storiesAsync.hasValue) ||
+        (tasksAsync.isLoading && !tasksAsync.hasValue) ||
+        (vaultAsync.isLoading && !vaultAsync.hasValue) ||
+        (pollsAsync.isLoading && !pollsAsync.hasValue) ||
+        (eventsAsync.isLoading && !eventsAsync.hasValue);
 
     if (stillLoadingEverything) {
       return const Center(child: CircularProgressIndicator());

@@ -162,6 +162,11 @@ class GamificationRepositoryImpl implements GamificationRepository {
         'points': FieldValue.increment(delta),
         'famCoins': FieldValue.increment(coinDelta + streak.coinBonus),
         'updatedAt': FieldValue.serverTimestamp(),
+        // Lets firestore.rules enforce a minimum gap between point-bearing
+        // writes to this doc — see the comment on member_stats' `allow
+        // update` — without this, rapid repeated writes could farm points/
+        // coins past the intended per-write caps.
+        'lastStatsWriteAt': FieldValue.serverTimestamp(),
         ...streak.fields,
       },
       SetOptions(merge: true),
@@ -181,6 +186,11 @@ class GamificationRepositoryImpl implements GamificationRepository {
         'storiesCreated': FieldValue.increment(1),
         'famCoins': FieldValue.increment(3 + streak.coinBonus),
         'updatedAt': FieldValue.serverTimestamp(),
+        // Lets firestore.rules enforce a minimum gap between point-bearing
+        // writes to this doc — see the comment on member_stats' `allow
+        // update` — without this, rapid repeated writes could farm points/
+        // coins past the intended per-write caps.
+        'lastStatsWriteAt': FieldValue.serverTimestamp(),
         ...streak.fields,
       },
       SetOptions(merge: true),
@@ -202,6 +212,11 @@ class GamificationRepositoryImpl implements GamificationRepository {
         'gamesWon': FieldValue.increment(1),
         'famCoins': FieldValue.increment(2 + streak.coinBonus),
         'updatedAt': FieldValue.serverTimestamp(),
+        // Lets firestore.rules enforce a minimum gap between point-bearing
+        // writes to this doc — see the comment on member_stats' `allow
+        // update` — without this, rapid repeated writes could farm points/
+        // coins past the intended per-write caps.
+        'lastStatsWriteAt': FieldValue.serverTimestamp(),
         ...streak.fields,
       },
       SetOptions(merge: true),

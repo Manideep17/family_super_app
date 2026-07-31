@@ -29,6 +29,7 @@ import '../../../tasks/domain/entities/family_task.dart';
 import '../../../tasks/presentation/providers/tasks_providers.dart';
 import '../../../tasks/presentation/screens/create_task_screen.dart';
 import '../../../tasks/presentation/screens/task_detail_screen.dart';
+import '../../../tasks/presentation/screens/tasks_home_screen.dart';
 import '../../../timeline/presentation/screens/timeline_screen.dart';
 import '../../../vault/presentation/screens/vault_screen.dart';
 
@@ -235,7 +236,11 @@ class DashboardScreen extends ConsumerWidget {
                   label: 'Open tasks',
                   value: '${pendingForMe.length}',
                   hint: pendingForMe.isEmpty ? 'all clear ✨' : 'tap to view',
-                  onTap: () {},
+                  onTap: () => Navigator.of(context).push(
+                    MaterialPageRoute<void>(
+                      builder: (_) => const TasksHomeScreen(),
+                    ),
+                  ),
                 ),
                 _SnapshotTile(
                   icon: Icons.auto_stories_rounded,

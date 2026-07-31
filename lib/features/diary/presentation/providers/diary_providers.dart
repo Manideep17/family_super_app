@@ -25,10 +25,12 @@ final storiesStreamProvider = StreamProvider<List<Story>>((ref) {
   return ref.watch(diaryRepositoryProvider).watchStories();
 });
 
-final storyDetailProvider = StreamProvider.family<Story?, String>((ref, id) {
+final storyDetailProvider =
+    StreamProvider.autoDispose.family<Story?, String>((ref, id) {
   return ref.watch(diaryRepositoryProvider).watchStory(id);
 });
 
-final storyCommentsProvider = StreamProvider.family<List<StoryComment>, String>((ref, id) {
+final storyCommentsProvider =
+    StreamProvider.autoDispose.family<List<StoryComment>, String>((ref, id) {
   return ref.watch(diaryRepositoryProvider).watchComments(id);
 });

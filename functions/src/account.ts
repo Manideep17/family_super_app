@@ -49,7 +49,7 @@ export const deleteAccount = onCall({ region: REGION }, async (request) => {
     const membersRef = familyRef.collection("members");
     const memberRef = membersRef.doc(uid);
 
-    const membersSnap = await membersRef.get();
+    const membersSnap = await membersRef.orderBy("joinedAt", "asc").get();
     const otherMembers = membersSnap.docs.filter((d) => d.id !== uid);
 
     if (otherMembers.length === 0) {
@@ -58,7 +58,34 @@ export const deleteAccount = onCall({ region: REGION }, async (request) => {
       familyWiped = true;
     } else {
       // Other members still depend on shared family data — only remove
-      // this person's own membership record.
+      // this person's own membership record. But if the departing member
+      // is the family owner, `ownerUid` would keep pointing at a uid that
+      // no longer exists — every owner-only action in firestore.rules
+      // (pinned announcements, digest toggle, ownership transfer itself)
+      // checks against that uid, so once it's gone nothing could ever
+      // satisfy that check again and the family would be permanently
+      // stuck. Reassign ownership to the longest-standing remaining member
+      // first, in the same spirit as the rules' own
+      // `priorFamilyOwnerId()`/`familyDocOwnerUid()` fallback logic
+      // (`ownerUid` if set, else `createdBy`).
+      const familySnap = await familyRef.get();
+      const familyData = familySnap.data() ?? {};
+      const currentOwnerUid =
+        typeof familyData.ownerUid === "string" && familyData.ownerUid.length > 0
+          ? familyData.ownerUid
+          : String(familyData.createdBy ?? "");
+
+      if (currentOwnerUid === uid) {
+        const successor = otherMembers[0];
+        await familyRef.set(
+          {
+            ownerUid: successor.id,
+            updatedAt: admin.firestore.FieldValue.serverTimestamp(),
+          },
+          { merge: true },
+        );
+      }
+
       await memberRef.delete().catch(() => undefined);
     }
   }

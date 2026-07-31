@@ -8,6 +8,7 @@ import 'package:shared_preferences/shared_preferences.dart';
 import '../../../../core/owner/owner_analytics_emails.dart';
 import '../../../../core/router/app_router.dart';
 import '../../../../core/theme/app_theme.dart';
+import '../providers/family_providers.dart';
 import 'create_family_screen.dart';
 import 'join_family_screen.dart';
 import 'trust_promise_screen.dart';
@@ -31,15 +32,27 @@ class _FamilyGateScreenState extends ConsumerState<FamilyGateScreen> {
   /// Trust screen first (one-time), then the existing welcome tips dialog —
   /// both gated on their own SharedPreferences flag so returning users never
   /// see either again.
+  ///
+  /// Both also re-check `currentFamilyIdProvider` right before showing:
+  /// this screen pushes them imperatively on top of `/onboarding` while
+  /// go_router's own redirect (app_router.dart) is *reactively* watching
+  /// familyId and will swap to `/home` the instant it becomes non-empty
+  /// (e.g. another device finishing a join for this same account). Mixing
+  /// imperative pushes with a declarative redirect underneath them can't be
+  /// fully race-proof, but skipping the push entirely once we already have
+  /// a family closes the common case.
   Future<void> _maybeShowOnboarding() async {
     await _maybeShowTrustPromise();
     if (!mounted) return;
     await _maybeShowWelcome();
   }
 
+  bool get _alreadyHasFamily =>
+      (ref.read(currentFamilyIdProvider).valueOrNull ?? '').isNotEmpty;
+
   Future<void> _maybeShowTrustPromise() async {
     final prefs = await SharedPreferences.getInstance();
-    if (!mounted) return;
+    if (!mounted || _alreadyHasFamily) return;
     if (prefs.getBool('fam_trust_promise_v1') == true) return;
     await Navigator.of(context).push(
       MaterialPageRoute<void>(
@@ -53,7 +66,7 @@ class _FamilyGateScreenState extends ConsumerState<FamilyGateScreen> {
 
   Future<void> _maybeShowWelcome() async {
     final prefs = await SharedPreferences.getInstance();
-    if (!mounted) return;
+    if (!mounted || _alreadyHasFamily) return;
     if (prefs.getBool('fam_gate_tips_v1') == true) return;
     await showDialog<void>(
       context: context,

@@ -35,6 +35,27 @@ async function androidPublisherClient() {
   return google.androidpublisher({ version: "v3", auth });
 }
 
+/**
+ * Best-effort extraction of the HTTP status code from a googleapis/gaxios
+ * error, so callers can tell "Play confirms this token is dead" (400/404/
+ * 410) apart from transient failures (network, quota, 5xx) without
+ * depending on gaxios's internal error class shape too tightly.
+ */
+function errorHttpStatus(err: unknown): number | undefined {
+  const e = err as {
+    response?: { status?: number };
+    code?: number | string;
+    status?: number;
+  };
+  if (typeof e?.response?.status === "number") return e.response.status;
+  if (typeof e?.status === "number") return e.status;
+  if (typeof e?.code === "number") return e.code;
+  if (typeof e?.code === "string" && /^\d+$/.test(e.code)) {
+    return Number(e.code);
+  }
+  return undefined;
+}
+
 /** Returns the subscription's current expiry (ms since epoch) per Play. */
 async function fetchExpiryTimeMillis(
   productId: string,
@@ -157,9 +178,36 @@ export const refreshSubscriptions = onSchedule(
           { merge: true },
         );
       } catch (err) {
-        // A single family's stale/revoked token shouldn't stop the rest of
-        // the batch from refreshing.
-        logger.warn("refreshSubscriptions: failed for family", { familyId: doc.id, err });
+        // Play returns a definite "this token is dead" status (400/404/410)
+        // for cancelled, refunded, or expired-and-consumed subscriptions —
+        // those must revoke entitlement, otherwise a refunded family keeps
+        // free premium access forever (this catch used to just log and
+        // move on, leaving `subscriptionActive` stuck at whatever it was).
+        // Anything else (network blip, quota, 5xx) is transient — leave the
+        // entitlement alone and let tomorrow's run retry, same as before.
+        const status = errorHttpStatus(err);
+        const isDefinitelyGone =
+          status === 400 || status === 404 || status === 410;
+        if (isDefinitelyGone) {
+          await doc.ref.set(
+            {
+              subscriptionActive: false,
+              subscriptionRevokedAt: admin.firestore.FieldValue.serverTimestamp(),
+              updatedAt: admin.firestore.FieldValue.serverTimestamp(),
+            },
+            { merge: true },
+          );
+          logger.info("refreshSubscriptions: revoked (Play confirmed gone)", {
+            familyId: doc.id,
+            status,
+          });
+        } else {
+          logger.warn("refreshSubscriptions: transient failure, will retry", {
+            familyId: doc.id,
+            status,
+            err,
+          });
+        }
       }
     }
     logger.info("refreshSubscriptions: done", { count: snap.size });
