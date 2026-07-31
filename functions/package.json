@@ -16,7 +16,7 @@
     "seed:dashboard-owner": "node scripts/seed_dashboard_owner_allowlist.js",
     "deploy": "firebase deploy --only functions",
     "logs": "firebase functions:log",
-    "test": "npm run build && node test/logic.test.js",
+    "test": "npm run build && node test/logic.test.js && node test/referrals.test.js",
     "test:rules": "firebase emulators:exec --only firestore \"node test/rules/rules.test.mjs\""
   },
   "dependencies": {

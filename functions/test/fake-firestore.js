@@ -5,16 +5,51 @@
 // GCP project) and assert on real before/after state.
 
 const SERVER_TS = Symbol("serverTimestamp");
+const INCREMENT = Symbol("increment");
 
-function isPlainObject(v) {
-  return v && typeof v === "object" && !(v instanceof Date) && !Array.isArray(v);
+/** Minimal stand-in for `admin.firestore.Timestamp` — real class instance
+ * (not a plain Date) so `instanceof admin.firestore.Timestamp` checks in
+ * real handler code (e.g. referrals.ts) work correctly against it. */
+class FakeTimestamp {
+  constructor(millis) {
+    this._millis = millis;
+  }
+  toMillis() {
+    return this._millis;
+  }
+  toDate() {
+    return new Date(this._millis);
+  }
+  static fromDate(d) {
+    return new FakeTimestamp(d.getTime());
+  }
+  static fromMillis(ms) {
+    return new FakeTimestamp(ms);
+  }
+  static now() {
+    return new FakeTimestamp(Date.now());
+  }
 }
 
-function resolveWrite(data) {
+function isPlainObject(v) {
+  return (
+    v &&
+    typeof v === "object" &&
+    !(v instanceof Date) &&
+    !(v instanceof FakeTimestamp) &&
+    !Array.isArray(v)
+  );
+}
+
+function resolveWrite(data, existing) {
+  const base = existing && typeof existing === "object" ? existing : {};
   const out = Array.isArray(data) ? [] : {};
   for (const [k, v] of Object.entries(data)) {
-    if (v === SERVER_TS) out[k] = new Date();
-    else if (isPlainObject(v)) out[k] = resolveWrite(v);
+    if (v === SERVER_TS) out[k] = new FakeTimestamp(Date.now());
+    else if (v && typeof v === "object" && v[INCREMENT] !== undefined) {
+      const prev = typeof base[k] === "number" ? base[k] : 0;
+      out[k] = prev + v[INCREMENT];
+    } else if (isPlainObject(v)) out[k] = resolveWrite(v, base[k]);
     else out[k] = v;
   }
   return out;
@@ -51,9 +86,9 @@ class FakeDb {
     };
   }
   _setDoc(path, data, opts) {
-    const resolved = resolveWrite(data);
+    const existing = this.store.get(path) || {};
+    const resolved = resolveWrite(data, existing);
     if (opts && opts.merge) {
-      const existing = this.store.get(path) || {};
       this.store.set(path, { ...existing, ...resolved });
     } else {
       this.store.set(path, resolved);
@@ -63,8 +98,23 @@ class FakeDb {
     if (!this.store.has(path)) {
       throw new Error(`FakeFirestore: update() on missing doc ${path}`);
     }
-    const resolved = resolveWrite(data);
-    this.store.set(path, { ...this.store.get(path), ...resolved });
+    const existing = this.store.get(path);
+    const resolved = resolveWrite(data, existing);
+    this.store.set(path, { ...existing, ...resolved });
+  }
+  async runTransaction(updateFunction) {
+    // Simplified: no isolation/snapshot consistency or automatic retry on
+    // contention — this fake is single-threaded and only needs to prove
+    // the handler's decision logic (read-then-write shape), not real
+    // transaction semantics.
+    const self = this;
+    const tx = {
+      get: (ref) => ref.get(),
+      set: (ref, data, opts) => self._setDoc(ref.path, data, opts),
+      update: (ref, data) => self._updateDoc(ref.path, data),
+      delete: (ref) => self.store.delete(ref.path),
+    };
+    return updateFunction(tx);
   }
 }
 
@@ -183,11 +233,9 @@ function installFakeAdmin(admin) {
   firestoreFn.FieldValue = {
     serverTimestamp: () => SERVER_TS,
     delete: () => undefined,
+    increment: (n) => ({ [INCREMENT]: n }),
   };
-  firestoreFn.Timestamp = {
-    fromDate: (d) => d,
-    now: () => new Date(),
-  };
+  firestoreFn.Timestamp = FakeTimestamp;
   overrideProp(admin, "firestore", firestoreFn);
   overrideProp(admin, "initializeApp", () => ({}));
   const deletedAuthUsers = [];

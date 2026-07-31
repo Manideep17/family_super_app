@@ -261,6 +261,13 @@ service cloud.firestore {
       // update (e.g. alongside a `name` rename) — adding those field names
       // to any hasOnly([...]) below would let any family member grant
       // themselves premium for free.
+      //
+      // Same rule for the referral fields: referralCode / referralCount /
+      // referredByFamilyId / referralBonusExpiresAt are written only by the
+      // admin SDK inside allocateReferralCode / redeemReferralCode
+      // (functions/src/referrals.ts) — never add them to a hasOnly([...])
+      // below, or any member could grant their family a free premium
+      // bonus by writing referralBonusExpiresAt directly.
       allow update: if (
           // Members may rename family or adjust count; pinned announcement is owner-only.
           isMemberOf(fid)
@@ -600,6 +607,49 @@ service cloud.firestore {
             );
           allow delete: if isMemberOf(fid) && request.auth.uid == uid;
         }
+      }
+
+      // Shared lists (grocery, to-do, packing, ...) — unlike stories/tasks,
+      // these are deliberately whole-family-editable: any member may check
+      // items, edit text, or delete items, since the point is shared
+      // upkeep of one list rather than personal authorship.
+      match /lists/{listId} {
+        allow read: if canReadFamilyData(fid);
+        allow create: if isMemberOf(fid)
+          && request.resource.data.createdBy == request.auth.uid
+          && validSizedString(request.resource.data.name, 1, 80)
+          && request.resource.data.kind in ['grocery', 'todo', 'other'];
+        allow update: if isMemberOf(fid)
+          && request.resource.data.createdBy == resource.data.createdBy
+          && request.resource.data.diff(resource.data).affectedKeys()
+            .hasOnly(['name', 'archived', 'updatedAt']);
+        allow delete: if isMemberOf(fid)
+          && resource.data.createdBy == request.auth.uid;
+
+        match /items/{itemId} {
+          allow read: if canReadFamilyData(fid);
+          allow create: if isMemberOf(fid)
+            && request.resource.data.createdBy == request.auth.uid
+            && validSizedString(request.resource.data.text, 1, 200);
+          allow update: if isMemberOf(fid)
+            && request.resource.data.createdBy == resource.data.createdBy
+            && request.resource.data.diff(resource.data).affectedKeys()
+              .hasOnly(['text', 'checked', 'checkedBy', 'checkedAt']);
+          allow delete: if isMemberOf(fid);
+        }
+      }
+
+      // Weekly meal planner — one doc per ISO week (`2026-W31`), `meals` is
+      // a flat "<day>_<slot>" -> dish-name map. Whole-family editable, same
+      // reasoning as `lists` above.
+      match /meal_plans/{weekId} {
+        allow read: if canReadFamilyData(fid);
+        allow create, update: if isMemberOf(fid)
+          && request.resource.data.updatedBy == request.auth.uid
+          && request.resource.data.weekId is string
+          && (!request.resource.data.keys().hasAny(['meals'])
+            || request.resource.data.meals is map);
+        allow delete: if false;
       }
     }
 

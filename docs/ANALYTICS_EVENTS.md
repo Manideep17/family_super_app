@@ -35,6 +35,17 @@ Use these events to build baseline dashboards for adoption and retention.
 - `prediction_resolved`
   - params: `outcome` (`'yes'` or `'no'`)
 
+## Shared lists, meal planning, referrals (v3 growth pass)
+
+- `shared_list_created`
+  - params: `kind` (`'grocery'` | `'todo'` | `'other'`)
+- `shared_list_item_added`
+- `meal_plan_updated`
+- `referral_code_shared` — user tapped "Invite & earn" and opened the share
+  sheet with their family's referral code.
+- `referral_code_redeemed` — a new family successfully redeemed someone
+  else's referral code (both families got the bonus).
+
 Watch these four for at least a month of real usage after this ships. If
 any of them stay near zero while diary/tasks/vault keep growing, that's the
 signal to sunset it rather than keep maintaining a screen nobody uses.

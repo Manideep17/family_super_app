@@ -39,6 +39,8 @@ class FamilyScope {
   CollectionReference<Map<String, dynamic>> get timeTravelEntries =>
       col('time_travel_entries');
   CollectionReference<Map<String, dynamic>> get polls => col('polls');
+  CollectionReference<Map<String, dynamic>> get lists => col('lists');
+  CollectionReference<Map<String, dynamic>> get mealPlans => col('meal_plans');
 
   DocumentReference<Map<String, dynamic>> chatDoc({String chatId = 'main'}) =>
       col('chats').doc(chatId);

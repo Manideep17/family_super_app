@@ -366,6 +366,57 @@ class FamilyRepository {
     });
   }
 
+  // ───────────────────────── Referrals ─────────────────────────
+
+  /// Returns this family's shareable referral code, minting one on first
+  /// call (idempotent server-side — see `allocateReferralCode` in
+  /// functions/src/referrals.ts).
+  Future<String> allocateMyReferralCode(String familyId) async {
+    final result = await FirebaseFunctions.instance
+        .httpsCallable('allocateReferralCode')
+        .call<Map<String, dynamic>>({'familyId': familyId});
+    final code = result.data['referralCode'] as String?;
+    if (code == null || code.isEmpty) {
+      throw StateError('Could not get a referral code, try again.');
+    }
+    return code;
+  }
+
+  /// Redeems someone else's referral code for [familyId] (the caller's own
+  /// family). Both families get a free-premium bonus — see
+  /// `redeemReferralCode` in functions/src/referrals.ts for the exact
+  /// rules (one-time per family, no self-referral).
+  Future<void> redeemReferralCode({
+    required String familyId,
+    required String referralCode,
+  }) async {
+    final normalized = referralCode.trim().toUpperCase();
+    if (normalized.length != 6) {
+      throw ArgumentError('Referral codes are 6 characters.');
+    }
+    try {
+      await FirebaseFunctions.instance
+          .httpsCallable('redeemReferralCode')
+          .call<Map<String, dynamic>>({
+        'familyId': familyId,
+        'referralCode': normalized,
+      });
+    } on FirebaseFunctionsException catch (e) {
+      if (e.code == 'not-found') {
+        throw StateError('No family found for that referral code.');
+      }
+      if (e.code == 'invalid-argument') {
+        throw StateError("You can't redeem your own family's code.");
+      }
+      if (e.code == 'already-exists') {
+        throw StateError('This family already redeemed a referral code.');
+      }
+      throw StateError(
+        'Could not redeem that code (${e.code}: ${e.message ?? 'no detail'}).',
+      );
+    }
+  }
+
   // ───────────────────────── Helpers ─────────────────────────
 
   /// Allocates a fresh, collision-checked 6-char join code via the
@@ -403,6 +454,11 @@ class FamilyRepository {
       subscriptionActive: d['subscriptionActive'] == true,
       subscriptionProductId: (d['subscriptionProductId'] as String? ?? '').trim(),
       subscriptionExpiresAt: (d['subscriptionExpiresAt'] as Timestamp?)?.toDate(),
+      referralCode: (d['referralCode'] as String? ?? '').toUpperCase(),
+      referralCount: (d['referralCount'] as num?)?.toInt() ?? 0,
+      referredByFamilyId: (d['referredByFamilyId'] as String? ?? '').trim(),
+      referralBonusExpiresAt:
+          (d['referralBonusExpiresAt'] as Timestamp?)?.toDate(),
     );
   }
 

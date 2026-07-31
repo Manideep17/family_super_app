@@ -65,6 +65,10 @@ dependencies:
   # On-device text-to-speech for the Sunday weekly-recap "Play recap" button
   # — reads the AI digest aloud, no server cost, no new billing.
   flutter_tts: ^4.2.5
+  # Android/iOS home-screen widget (open task count + family name) — see
+  # lib/core/widget/home_widget_sync.dart and
+  # android/app/src/main/kotlin/.../FamWidgetProvider.kt.
+  home_widget: ^0.9.2
 
 dev_dependencies:
   flutter_test:

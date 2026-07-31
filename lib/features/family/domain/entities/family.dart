@@ -16,6 +16,10 @@ class Family extends Equatable {
     this.subscriptionActive = false,
     this.subscriptionProductId = '',
     this.subscriptionExpiresAt,
+    this.referralCode = '',
+    this.referralCount = 0,
+    this.referredByFamilyId = '',
+    this.referralBonusExpiresAt,
   });
 
   final String id;
@@ -50,16 +54,39 @@ class Family extends Equatable {
   /// docs/BILLING_SETUP.md.
   final DateTime? subscriptionExpiresAt;
 
+  /// This family's own shareable "invite & earn" code — set once by
+  /// `allocateReferralCode` (functions/src/referrals.ts), empty until the
+  /// "Invite & earn" screen has been opened at least once.
+  final String referralCode;
+
+  /// How many other families have redeemed this family's referral code.
+  final int referralCount;
+
+  /// Set once, the first (and only) time this family redeemed someone
+  /// else's referral code — never writable by clients.
+  final String referredByFamilyId;
+
+  /// Free-premium bonus window earned via the referral loop — entirely
+  /// separate from the real, verified-purchase subscription fields above,
+  /// so it can never be silently overwritten by `refreshSubscriptions`
+  /// (which only ever touches families with a real purchase token) and
+  /// stacks across multiple successful referrals instead of resetting.
+  final DateTime? referralBonusExpiresAt;
+
   bool get isFull => memberLimit > 0 && memberCount >= memberLimit;
 
-  /// True only if the last verified subscription state is active AND its
-  /// verified expiry hasn't passed yet — computed client-side too so a
-  /// stale `subscriptionActive: true` doesn't outlive its real expiry
-  /// between re-verifications.
+  bool get hasActiveReferralBonus =>
+      referralBonusExpiresAt != null &&
+      referralBonusExpiresAt!.isAfter(DateTime.now());
+
+  /// True if the last verified subscription state is active and unexpired,
+  /// OR a referral bonus is currently active — either path unlocks the
+  /// same premium features.
   bool get isPremium =>
-      subscriptionActive &&
-      (subscriptionExpiresAt == null ||
-          subscriptionExpiresAt!.isAfter(DateTime.now()));
+      (subscriptionActive &&
+          (subscriptionExpiresAt == null ||
+              subscriptionExpiresAt!.isAfter(DateTime.now()))) ||
+      hasActiveReferralBonus;
 
   @override
   List<Object?> get props => [
@@ -76,5 +103,9 @@ class Family extends Equatable {
         subscriptionActive,
         subscriptionProductId,
         subscriptionExpiresAt,
+        referralCode,
+        referralCount,
+        referredByFamilyId,
+        referralBonusExpiresAt,
       ];
 }

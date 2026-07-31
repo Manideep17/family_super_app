@@ -54,5 +54,20 @@
         <meta-data
             android:name="flutterEmbedding"
             android:value="2" />
+
+        <!-- Home-screen widget (see FamWidgetProvider.kt / home_widget_sync.dart).
+             exported="true" is required here (not the usual "false" default for
+             app-internal receivers) because the launcher, a different app,
+             is what sends it the APPWIDGET_UPDATE broadcast. -->
+        <receiver
+            android:name=".FamWidgetProvider"
+            android:exported="true">
+            <intent-filter>
+                <action android:name="android.appwidget.action.APPWIDGET_UPDATE" />
+            </intent-filter>
+            <meta-data
+                android:name="android.appwidget.provider"
+                android:resource="@xml/fam_widget_info" />
+        </receiver>
     </application>
 </manifest>

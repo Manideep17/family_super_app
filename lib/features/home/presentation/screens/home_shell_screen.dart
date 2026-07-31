@@ -4,12 +4,14 @@ import 'package:go_router/go_router.dart';
 
 import '../../../../core/config/feedback_launch.dart';
 import '../../../../core/owner/owner_analytics_emails.dart';
+import '../../../../core/widget/home_widget_sync.dart';
 import '../../../chat/presentation/screens/family_chat_screen.dart';
 import '../../../family/domain/entities/family_member.dart';
 import '../../../diary/presentation/screens/diary_feed_screen.dart';
 import '../../../feed/presentation/screens/family_feed_screen.dart';
 import '../../../family/presentation/providers/family_providers.dart';
 import '../../../family/presentation/screens/family_management_screen.dart';
+import '../../../family/presentation/screens/invite_and_earn_screen.dart';
 import '../../../insights/presentation/screens/ai_quiz_screen.dart';
 import '../../../insights/presentation/screens/best_moments_screen.dart';
 import '../../../insights/presentation/screens/mood_insights_screen.dart';
@@ -20,8 +22,11 @@ import '../../../vault/presentation/screens/vault_screen.dart';
 import '../../../gamification/presentation/providers/gamification_providers.dart';
 import '../../../gamification/presentation/screens/leaderboard_screen.dart';
 import '../../../games/presentation/screens/games_hub_screen.dart';
+import '../../../lists/presentation/screens/shared_lists_home_screen.dart';
 import '../../../polls/presentation/screens/family_polls_screen.dart';
 import '../../../profile/presentation/providers/user_profile_providers.dart';
+import '../../../tasks/domain/entities/family_task.dart';
+import '../../../tasks/presentation/providers/tasks_providers.dart';
 import '../../../profile/presentation/screens/profile_screen.dart';
 import '../../../../core/router/app_router.dart';
 import 'dashboard_screen.dart';
@@ -37,6 +42,7 @@ class HomeShellScreen extends ConsumerStatefulWidget {
 class _HomeShellScreenState extends ConsumerState<HomeShellScreen> {
   int _index = 0;
   String? _warmedFamilyId;
+  String? _lastWidgetSyncKey;
 
   static const _titles = ['Feed', 'Home', 'Family Chat', 'Diary', 'Tasks'];
 
@@ -61,6 +67,29 @@ class _HomeShellScreenState extends ConsumerState<HomeShellScreen> {
         ref.read(gamificationRepositoryProvider).ensureMyProfile();
         ref.read(userProfileRepositoryProvider).ensureMyUserDoc();
       });
+    }
+
+    // Home-screen widget sync (Android) — fire-and-forget, only when the
+    // family name or open-task count actually changed, so this doesn't
+    // spam a native write on every unrelated rebuild.
+    final widgetSyncFamily = ref.watch(currentFamilyProvider).valueOrNull;
+    final widgetSyncTasks = ref.watch(myTasksStreamProvider).valueOrNull;
+    if (widgetSyncFamily != null && widgetSyncTasks != null) {
+      final openTaskCount = widgetSyncTasks
+          .where((t) =>
+              t.status == TaskStatus.pending ||
+              t.status == TaskStatus.submitted)
+          .length;
+      final syncKey = '${widgetSyncFamily.name}|$openTaskCount';
+      if (_lastWidgetSyncKey != syncKey) {
+        _lastWidgetSyncKey = syncKey;
+        WidgetsBinding.instance.addPostFrameCallback((_) {
+          HomeWidgetSync.sync(
+            familyName: widgetSyncFamily.name,
+            openTaskCount: openTaskCount,
+          );
+        });
+      }
     }
 
     final auth = ref.watch(authRepositoryProvider);
@@ -146,6 +175,19 @@ class _HomeShellScreenState extends ConsumerState<HomeShellScreen> {
                   );
                 },
               ),
+              ListTile(
+                leading: const Icon(Icons.card_giftcard_rounded),
+                title: const Text('Invite & earn'),
+                subtitle: const Text('Share your code, get free Premium'),
+                onTap: () {
+                  Navigator.pop(context);
+                  Navigator.of(context).push(
+                    MaterialPageRoute<void>(
+                      builder: (_) => const InviteAndEarnScreen(),
+                    ),
+                  );
+                },
+              ),
               const Padding(
                 padding: EdgeInsets.fromLTRB(16, 8, 16, 4),
                 child: Text('Family roster'),
@@ -202,6 +244,24 @@ class _HomeShellScreenState extends ConsumerState<HomeShellScreen> {
                   Navigator.of(context).push(
                     MaterialPageRoute<void>(
                         builder: (_) => const VaultScreen()),
+                  );
+                },
+              ),
+              const Divider(),
+              const Padding(
+                padding: EdgeInsets.fromLTRB(16, 8, 16, 4),
+                child: Text('Plan together'),
+              ),
+              ListTile(
+                leading: const Icon(Icons.checklist_rounded),
+                title: const Text('Lists & meal planner'),
+                subtitle: const Text('Shared grocery/to-do lists, weekly meals'),
+                onTap: () {
+                  Navigator.pop(context);
+                  Navigator.of(context).push(
+                    MaterialPageRoute<void>(
+                      builder: (_) => const SharedListsHomeScreen(),
+                    ),
                   );
                 },
               ),

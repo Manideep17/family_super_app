@@ -1,0 +1,35 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!--
+  Home-screen widget layout. RemoteViews only supports a small subset of
+  Android views (this file deliberately sticks to LinearLayout + TextView,
+  the two most basic and always-safe options). See FamWidgetProvider.kt
+  for how the two text fields below get filled in from data synced by
+  lib/core/widget/home_widget_sync.dart.
+-->
+<LinearLayout xmlns:android="http://schemas.android.com/apk/res/android"
+    android:id="@+id/fam_widget_root"
+    android:layout_width="match_parent"
+    android:layout_height="match_parent"
+    android:orientation="vertical"
+    android:gravity="center_vertical"
+    android:background="#FFFFFFFF"
+    android:padding="16dp">
+
+    <TextView
+        android:id="@+id/fam_widget_title"
+        android:layout_width="wrap_content"
+        android:layout_height="wrap_content"
+        android:text="FAM"
+        android:textColor="#FF1B1B1F"
+        android:textSize="16sp"
+        android:textStyle="bold" />
+
+    <TextView
+        android:id="@+id/fam_widget_subtitle"
+        android:layout_width="wrap_content"
+        android:layout_height="wrap_content"
+        android:layout_marginTop="4dp"
+        android:text="Open the app to sync"
+        android:textColor="#FF49454F"
+        android:textSize="14sp" />
+</LinearLayout>

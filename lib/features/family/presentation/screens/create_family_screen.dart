@@ -15,6 +15,7 @@ class _CreateFamilyScreenState extends ConsumerState<CreateFamilyScreen> {
   final _name = TextEditingController(text: 'Our Family');
   final _displayName = TextEditingController();
   final _greeting = TextEditingController(text: '');
+  final _referralCode = TextEditingController();
   bool _saving = false;
   String? _error;
 
@@ -23,6 +24,7 @@ class _CreateFamilyScreenState extends ConsumerState<CreateFamilyScreen> {
     _name.dispose();
     _displayName.dispose();
     _greeting.dispose();
+    _referralCode.dispose();
     super.dispose();
   }
 
@@ -42,11 +44,24 @@ class _CreateFamilyScreenState extends ConsumerState<CreateFamilyScreen> {
       _error = null;
     });
     try {
-      await ref.read(familyRepositoryProvider).createFamily(
+      final familyId = await ref.read(familyRepositoryProvider).createFamily(
             name: name,
             displayName: displayName,
             greeting: _greeting.text,
           );
+      // Best-effort, never blocks family creation: a typo'd or already-used
+      // referral code shouldn't stop someone from finishing onboarding.
+      final referral = _referralCode.text.trim();
+      if (referral.isNotEmpty) {
+        try {
+          await ref.read(familyRepositoryProvider).redeemReferralCode(
+                familyId: familyId,
+                referralCode: referral,
+              );
+        } catch (_) {
+          // Silently skipped — the "Invite & earn" screen lets them retry.
+        }
+      }
       if (mounted) {
         // Router auto-redirects to /home as soon as familyId appears.
         Navigator.of(context).pop();
@@ -135,6 +150,26 @@ class _CreateFamilyScreenState extends ConsumerState<CreateFamilyScreen> {
           Text(
             'This is what your home screen will say when you open the app. '
             'Leave blank for a time-aware "Good morning".',
+            style: Theme.of(context).textTheme.bodySmall?.copyWith(
+                  color: scheme.onSurfaceVariant,
+                ),
+          ),
+          const Divider(height: 32),
+          TextField(
+            controller: _referralCode,
+            textCapitalization: TextCapitalization.characters,
+            maxLength: 6,
+            style: const TextStyle(letterSpacing: 4),
+            decoration: const InputDecoration(
+              labelText: 'Referral code (optional)',
+              hintText: 'ABC123',
+              prefixIcon: Icon(Icons.card_giftcard_outlined),
+              counterText: '',
+            ),
+          ),
+          Text(
+            'Got invited by another family? Add their code and you both get '
+            'a week of Premium free.',
             style: Theme.of(context).textTheme.bodySmall?.copyWith(
                   color: scheme.onSurfaceVariant,
                 ),
