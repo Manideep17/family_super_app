@@ -87,7 +87,13 @@ class _JoinFamilyScreenState extends ConsumerState<JoinFamilyScreen> {
     if (raw.contains('Account is missing an email')) {
       return 'Your account is missing an email address. Please sign in again with an email-based account.';
     }
-    return 'Could not join family right now. Please try again.';
+    if (raw.contains('Could not reach the join service')) {
+      // Surface the real detail (Cloud Function error code/message) instead
+      // of hiding it — this is almost always either a network blip or the
+      // `resolveJoinCode` backend function not being deployed yet.
+      return raw.replaceFirst('StateError: ', '');
+    }
+    return 'Could not join family right now ($raw). Please try again.';
   }
 
   @override

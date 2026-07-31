@@ -1,6 +1,7 @@
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
+import '../../../../core/network/retry.dart';
 import '../../../family/presentation/providers/family_providers.dart';
 import '../../data/user_profile_repository_impl.dart';
 import '../../domain/entities/family_user_profile.dart';
@@ -20,6 +21,6 @@ final myUserProfileProvider = StreamProvider<FamilyUserProfile?>((ref) {
   final repo = ref.watch(userProfileRepositoryProvider);
   return FirebaseAuth.instance.authStateChanges().asyncExpand((user) {
     if (user == null) return Stream.value(null);
-    return repo.watchProfile(user.uid);
+    return retryStream(() => repo.watchProfile(user.uid));
   });
 });

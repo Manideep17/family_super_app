@@ -2,6 +2,7 @@ import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:cloud_functions/cloud_functions.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 
+import '../../../core/network/retry.dart';
 import '../../auth/domain/entities/family_role.dart';
 import '../domain/entities/family.dart';
 import '../domain/entities/family_member.dart';
@@ -48,40 +49,52 @@ class FamilyRepository {
   Stream<String?> watchMyFamilyId() {
     return _auth.authStateChanges().asyncExpand((user) {
       if (user == null) return Stream.value(null);
-      return _users.doc(user.uid).snapshots().map((s) {
+      // retryStream: right after sign-in there's a brief window where
+      // Firestore can return one permission-denied before the fresh ID
+      // token has propagated to its listener — Firestore does not
+      // auto-retry that error the way it does transient network errors, so
+      // without this the stream (and every provider built on it) gets
+      // stuck in an error state until the whole app restarts.
+      return retryStream(() => _users.doc(user.uid).snapshots().map((s) {
         if (!s.exists) return null;
         final fid = s.data()?['familyId'];
         return fid is String && fid.isNotEmpty ? fid : null;
-      });
+      }));
     });
   }
 
   /// Streams the family doc for [familyId]. Emits null while the doc loads
   /// or if it was deleted.
   Stream<Family?> watchFamily(String familyId) {
-    return _families.doc(familyId).snapshots().map(_familyFromDoc);
+    return retryStream(
+      () => _families.doc(familyId).snapshots().map(_familyFromDoc),
+    );
   }
 
   /// Streams members of [familyId], ordered by joinedAt.
   Stream<List<FamilyMember>> watchMembers(String familyId) {
-    return _families
-        .doc(familyId)
-        .collection('members')
-        .orderBy('joinedAt', descending: false)
-        .snapshots()
-        .map((s) => s.docs.map(_memberFromDoc).toList());
+    return retryStream(
+      () => _families
+          .doc(familyId)
+          .collection('members')
+          .orderBy('joinedAt', descending: false)
+          .snapshots()
+          .map((s) => s.docs.map(_memberFromDoc).toList()),
+    );
   }
 
   /// Streams the current user's member doc inside [familyId].
   Stream<FamilyMember?> watchMyMember(String familyId) {
     final u = _auth.currentUser;
     if (u == null) return Stream.value(null);
-    return _families
-        .doc(familyId)
-        .collection('members')
-        .doc(u.uid)
-        .snapshots()
-        .map((s) => s.exists ? _memberFromDoc(s) : null);
+    return retryStream(
+      () => _families
+          .doc(familyId)
+          .collection('members')
+          .doc(u.uid)
+          .snapshots()
+          .map((s) => s.exists ? _memberFromDoc(s) : null),
+    );
   }
 
   // ───────────────────────── Writes ─────────────────────────
@@ -175,7 +188,18 @@ class FamilyRepository {
       if (e.code == 'not-found') {
         throw StateError('No family found for that code.');
       }
-      rethrow;
+      // Anything else here (not-found's own meaning is "no such join
+      // code" and is handled above) most commonly means the
+      // `resolveJoinCode` Cloud Function itself isn't deployed yet, or the
+      // deploy failed — surface the real code/message instead of a generic
+      // failure so this is actually diagnosable from a bug report instead
+      // of guessing blind.
+      throw StateError(
+        'Could not reach the join service (${e.code}: ${e.message ?? 'no detail'}). '
+        'If this keeps happening, the backend may need to be redeployed.',
+      );
+    } on Object catch (e) {
+      throw StateError('Could not reach the join service ($e).');
     }
     if (resolvedFamilyId.isEmpty) {
       throw StateError('No family found for that code.');

@@ -14,6 +14,7 @@ import '../../features/auth/presentation/screens/login_screen.dart';
 import '../../features/family/presentation/screens/family_gate_screen.dart';
 import '../../features/home/presentation/screens/home_shell_screen.dart';
 import '../../features/owner_analytics/presentation/screens/owner_analytics_screen.dart';
+import '../network/retry.dart';
 import 'go_router_refresh.dart';
 
 final authRepositoryProvider = Provider<AuthRepository>((ref) {
@@ -22,18 +23,26 @@ final authRepositoryProvider = Provider<AuthRepository>((ref) {
 
 /// Streams `users/{uid}.familyId` so the router can react when the current
 /// user creates / joins / leaves a family without a manual reload.
+///
+/// Wrapped in [retryStream]: right after sign-in there's a brief window
+/// where Firestore can return one `permission-denied` before the fresh ID
+/// token has propagated to its listener (Firestore does not auto-retry
+/// that error code the way it does transient network errors) — without the
+/// retry, this provider gets stuck in an error state and the router sends
+/// the user to `/router-error` ("Could not load your family data") until
+/// the whole app is restarted.
 final _routerFamilyIdProvider = StreamProvider<String?>((ref) {
   final authStream = FirebaseAuth.instance.authStateChanges();
   return authStream.asyncExpand((user) {
     if (user == null) return Stream.value(null);
-    return FirebaseFirestore.instance
+    return retryStream(() => FirebaseFirestore.instance
         .collection('users')
         .doc(user.uid)
         .snapshots()
         .map((snap) {
       final fid = snap.data()?['familyId'];
       return fid is String && fid.isNotEmpty ? fid : null;
-    });
+    }));
   });
 });
 
@@ -47,16 +56,20 @@ final appRouterProvider = Provider<GoRouter>((ref) {
     fireImmediately: true,
   );
 
-  // Refresh on EITHER auth change OR familyId change.
+  // Refresh on EITHER auth change OR familyId change. Same retryStream
+  // reasoning as `_routerFamilyIdProvider` above — this is a second,
+  // independent listener on the same doc and would otherwise get stuck
+  // silently (never firing again to trigger a redirect re-check) after the
+  // same post-sign-in permission-denied race.
   final familyChangeController = StreamController<Object?>.broadcast();
   final familySub = FirebaseAuth.instance.authStateChanges().asyncExpand((u) {
     if (u == null) return Stream<Object?>.value(null);
-    return FirebaseFirestore.instance
+    return retryStream(() => FirebaseFirestore.instance
         .collection('users')
         .doc(u.uid)
         .snapshots()
-        .map<Object?>((s) => s.data()?['familyId']);
-  }).listen(familyChangeController.add);
+        .map<Object?>((s) => s.data()?['familyId']));
+  }).listen(familyChangeController.add, onError: (_) {});
   final mergedStream = MergeStream<dynamic>([
     auth.authStateChanges(),
     familyChangeController.stream,
