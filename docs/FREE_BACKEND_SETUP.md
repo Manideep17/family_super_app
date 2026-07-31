@@ -2,16 +2,12 @@
 
 This app can run Blaze-like features without Firebase Blaze by combining Spark with free services.
 
-## 1) Media uploads (Cloudinary free)
-
-Create an unsigned upload preset in Cloudinary and run Flutter with:
-
-```bash
-flutter run \
-  --dart-define=MEDIA_UPLOADS_ENABLED=true \
-  --dart-define=CLOUDINARY_CLOUD_NAME=your_cloud \
-  --dart-define=CLOUDINARY_UPLOAD_PRESET=your_unsigned_preset
-```
+**Superseded, once you're on Blaze**: media uploads (diary/avatar/vault/reel)
+now go straight to Firebase Storage (`lib/core/media/media_upload_service.dart`
++ `storage.rules`) — no Cloudinary account or extra dart-defines needed,
+just `--dart-define=MEDIA_UPLOADS_ENABLED=true` (already the CI default).
+Storage itself has no Spark/free tier, which is the one piece of section 1
+below that no longer applies once Blaze is active.
 
 ## 2) Push notifications (OneSignal + Cloudflare Worker)
 

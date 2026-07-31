@@ -1,11 +1,8 @@
-import 'dart:convert';
 import 'dart:io';
 
-import 'package:http/http.dart' as http;
+import 'package:firebase_storage/firebase_storage.dart';
 
-import '../config/app_flags.dart';
-import '../network/retry.dart';
-import '../network/sync_health.dart';
+import 'app_flags.dart' show AppFlags;
 
 class UploadedMedia {
   const UploadedMedia({
@@ -20,7 +17,11 @@ class UploadedMedia {
 }
 
 abstract class MediaUploadService {
+  /// [familyId] is required so the object lands under
+  /// `families/{familyId}/{folder}/{ownerUid}/...` — the exact path shape
+  /// `storage.rules` checks against (member-of-family read, own-uid write).
   Future<UploadedMedia> uploadFile({
+    required String familyId,
     required File file,
     required String folder,
     required String ownerUid,
@@ -29,14 +30,22 @@ abstract class MediaUploadService {
   });
 }
 
-class CloudinaryMediaUploadService implements MediaUploadService {
-  CloudinaryMediaUploadService({http.Client? client})
-      : _client = client ?? http.Client();
+/// Uploads straight to this project's Firebase Storage bucket (Blaze plan
+/// required — Storage has no Spark/free tier). Security is enforced by
+/// `storage.rules`: only members of the family may read, and only the
+/// uploading uid may write to their own `{folder}/{uid}/...` path — a
+/// meaningfully tighter model than an unsigned Cloudinary preset, which lets
+/// anyone who discovers the preset name upload to the account regardless of
+/// whether they're even signed into the app.
+class FirebaseStorageMediaUploadService implements MediaUploadService {
+  FirebaseStorageMediaUploadService({FirebaseStorage? storage})
+      : _storage = storage ?? FirebaseStorage.instance;
 
-  final http.Client _client;
+  final FirebaseStorage _storage;
 
   @override
   Future<UploadedMedia> uploadFile({
+    required String familyId,
     required File file,
     required String folder,
     required String ownerUid,
@@ -46,56 +55,24 @@ class CloudinaryMediaUploadService implements MediaUploadService {
     if (!AppFlags.mediaUploadsEnabled) {
       throw StateError('Media uploads are disabled in this build.');
     }
-    if (!AppFlags.cloudinaryConfigured) {
-      throw StateError(
-        'Cloudinary is not configured. Set CLOUDINARY_CLOUD_NAME and CLOUDINARY_UPLOAD_PRESET.',
-      );
+    if (familyId.isEmpty) {
+      throw StateError('No family — cannot upload.');
     }
-    const cloud = AppFlags.cloudinaryCloudName;
-    const preset = AppFlags.cloudinaryUploadPreset;
-    final uri = Uri.parse('https://api.cloudinary.com/v1_1/$cloud/auto/upload');
+    final ext = _extensionFor(file.path, contentType);
+    final path = 'families/$familyId/$folder/$ownerUid/$fileName$ext';
+    final ref = _storage.ref(path);
+    await ref.putFile(file, SettableMetadata(contentType: contentType));
+    final url = await ref.getDownloadURL();
+    return UploadedMedia(url: url, storagePath: path, contentType: contentType);
+  }
 
-    final request = http.MultipartRequest('POST', uri)
-      ..fields['upload_preset'] = preset
-      ..fields['folder'] = '$folder/$ownerUid'
-      ..fields['public_id'] = fileName
-      ..files.add(await http.MultipartFile.fromPath('file', file.path));
-
-    var ok = false;
-    try {
-      final uploaded = await withRetry(
-        () async {
-          final streamed = await _client.send(request);
-          final body = await streamed.stream.bytesToString();
-          if (streamed.statusCode < 200 || streamed.statusCode >= 300) {
-            throw StateError('Cloud upload failed (${streamed.statusCode}): $body');
-          }
-          final data = jsonDecode(body) as Map<String, dynamic>;
-          final secureUrl = data['secure_url']?.toString() ?? '';
-          final publicId = data['public_id']?.toString() ?? '';
-          if (secureUrl.isEmpty || publicId.isEmpty) {
-            throw StateError('Cloud upload returned incomplete payload.');
-          }
-          final returnedType = data['resource_type']?.toString() == 'video'
-              ? 'video/mp4'
-              : contentType;
-          return UploadedMedia(
-            url: secureUrl,
-            storagePath: publicId,
-            contentType: returnedType,
-          );
-        },
-        timeout: const Duration(seconds: 20),
-      );
-      ok = true;
-      return uploaded;
-    } catch (e) {
-      SyncHealth.recordError(e);
-      rethrow;
-    } finally {
-      if (ok) {
-        SyncHealth.recordSuccess('Upload synced');
-      }
+  String _extensionFor(String originalPath, String contentType) {
+    final dot = originalPath.lastIndexOf('.');
+    if (dot != -1 && dot < originalPath.length - 1) {
+      return originalPath.substring(dot);
     }
+    if (contentType.startsWith('video/')) return '.mp4';
+    if (contentType.startsWith('audio/')) return '.m4a';
+    return '.jpg';
   }
 }

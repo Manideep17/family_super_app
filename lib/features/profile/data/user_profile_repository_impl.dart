@@ -17,7 +17,7 @@ class UserProfileRepositoryImpl implements UserProfileRepository {
   })  : _db = firestore ?? FirebaseFirestore.instance,
         _scope = scope,
         _auth = auth ?? FirebaseAuth.instance,
-        _mediaUpload = mediaUpload ?? CloudinaryMediaUploadService();
+        _mediaUpload = mediaUpload ?? FirebaseStorageMediaUploadService();
 
   final FirebaseFirestore _db;
   final FamilyScope _scope;
@@ -74,6 +74,7 @@ class UserProfileRepositoryImpl implements UserProfileRepository {
   Future<void> uploadAvatarFile(File imageFile) async {
     final u = _user;
     final uploaded = await _mediaUpload.uploadFile(
+      familyId: _scope.familyId,
       file: imageFile,
       folder: 'avatars',
       ownerUid: u.uid,

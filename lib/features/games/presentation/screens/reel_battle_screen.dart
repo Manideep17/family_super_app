@@ -91,7 +91,8 @@ class _ReelBattleScreenState extends ConsumerState<ReelBattleScreen> {
     setState(() => _uploading = true);
     try {
       final id = const Uuid().v4();
-      final uploaded = await CloudinaryMediaUploadService().uploadFile(
+      final uploaded = await FirebaseStorageMediaUploadService().uploadFile(
+        familyId: ref.read(familyScopeProvider).familyId,
         file: File(clip.path),
         folder: 'reels',
         ownerUid: user.uid,

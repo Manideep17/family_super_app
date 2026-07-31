@@ -2,6 +2,7 @@ import 'dart:io';
 
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:firebase_auth/firebase_auth.dart';
+import 'package:firebase_storage/firebase_storage.dart';
 import 'package:uuid/uuid.dart';
 
 import '../../../core/media/media_upload_service.dart';
@@ -20,7 +21,7 @@ class VaultRepositoryImpl implements VaultRepository {
         _familyEmails = familyMemberEmails,
         _displayName = memberDisplayName,
         _auth = auth ?? FirebaseAuth.instance,
-        _mediaUpload = mediaUpload ?? CloudinaryMediaUploadService();
+        _mediaUpload = mediaUpload ?? FirebaseStorageMediaUploadService();
 
   final FamilyScope _scope;
   final Set<String> _familyEmails;
@@ -102,6 +103,7 @@ class VaultRepositoryImpl implements VaultRepository {
 
     final id = const Uuid().v4();
     final uploaded = await _mediaUpload.uploadFile(
+      familyId: _scope.familyId,
       file: file,
       folder: 'vault',
       ownerUid: u.uid,
@@ -133,8 +135,17 @@ class VaultRepositoryImpl implements VaultRepository {
     if (item.uploaderUid != _user.uid) {
       throw StateError('Only the uploader can delete this item.');
     }
-    // Cloudinary unsigned uploads cannot be deleted securely from client.
-    // We still remove the Firestore record so the vault view updates.
+    // Firebase Storage's own rules already restrict this path to the
+    // uploading uid (storage.rules), so this can actually delete the file
+    // itself now — not just the Firestore record. try/catch covers items
+    // uploaded before this migration (their storagePath was a Cloudinary
+    // public_id, not a real Storage path — deleting that just throws
+    // object-not-found, harmless).
+    if (item.storagePath.isNotEmpty) {
+      try {
+        await FirebaseStorage.instance.ref(item.storagePath).delete();
+      } catch (_) {}
+    }
     await _items.doc(itemId).delete();
   }
 }

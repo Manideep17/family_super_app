@@ -1,7 +1,10 @@
 /// Runtime feature toggles.
 ///
-/// Media-upload features can be toggled per build. When enabled, this project
-/// uses Cloudinary settings below for upload handling.
+/// Media-upload features can be toggled per build. Uploads go straight to
+/// this project's Firebase Storage bucket (see
+/// `lib/core/media/media_upload_service.dart` and `storage.rules`) — Storage
+/// requires the Blaze plan (no Spark/free tier), which is why this still
+/// stays behind its own flag rather than being unconditionally on.
 class AppFlags {
   AppFlags._();
 
@@ -22,12 +25,6 @@ class AppFlags {
   static const bool aiDigestEnabled =
       bool.fromEnvironment('AI_DIGEST_ENABLED', defaultValue: false);
 
-  /// Cloudinary (free tier) configuration.
-  static const String cloudinaryCloudName =
-      String.fromEnvironment('CLOUDINARY_CLOUD_NAME', defaultValue: '');
-  static const String cloudinaryUploadPreset =
-      String.fromEnvironment('CLOUDINARY_UPLOAD_PRESET', defaultValue: '');
-
   /// Optional: OneSignal + free worker bridge.
   static const String oneSignalAppId =
       String.fromEnvironment('ONESIGNAL_APP_ID', defaultValue: '');
@@ -36,8 +33,6 @@ class AppFlags {
   static const String pushWorkerKey =
       String.fromEnvironment('PUSH_WORKER_KEY', defaultValue: '');
 
-  static bool get cloudinaryConfigured =>
-      cloudinaryCloudName.isNotEmpty && cloudinaryUploadPreset.isNotEmpty;
   static bool get pushBridgeConfigured =>
       oneSignalAppId.isNotEmpty &&
       pushWorkerEndpoint.isNotEmpty &&

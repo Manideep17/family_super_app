@@ -25,7 +25,7 @@ class DiaryRepositoryImpl implements DiaryRepository {
         _displayName = memberDisplayName,
         _familyEmails = familyMemberEmails ?? const {},
         _auth = auth ?? FirebaseAuth.instance,
-        _mediaUpload = mediaUpload ?? CloudinaryMediaUploadService();
+        _mediaUpload = mediaUpload ?? FirebaseStorageMediaUploadService();
 
   final FamilyScope _scope;
   final GamificationRepository _gamification;
@@ -183,6 +183,7 @@ class DiaryRepositoryImpl implements DiaryRepository {
     final u = _user;
     final id = const Uuid().v4();
     final uploaded = await _mediaUpload.uploadFile(
+      familyId: _scope.familyId,
       file: file,
       folder: 'stories',
       ownerUid: u.uid,
