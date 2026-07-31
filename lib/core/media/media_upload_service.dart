@@ -2,7 +2,7 @@ import 'dart:io';
 
 import 'package:firebase_storage/firebase_storage.dart';
 
-import 'app_flags.dart' show AppFlags;
+import '../config/app_flags.dart' show AppFlags;
 
 class UploadedMedia {
   const UploadedMedia({
