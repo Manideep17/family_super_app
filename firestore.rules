@@ -298,12 +298,19 @@ service cloud.firestore {
           && request.resource.data.ownerUid != request.auth.uid
           && exists(/databases/$(database)/documents/families/$(fid)/members/$(request.resource.data.ownerUid))
         ) || (
-          // New joiner path: allow atomic +1 memberCount during join
-          // transaction. Requires the caller's own members/{uid} doc to
-          // already exist — the join transaction always creates that doc
-          // *before* this update in the same atomic transaction, so this
-          // is satisfied for a real join but blocks any signed-in stranger
-          // from inflating memberCount on a family they never joined.
+          // New joiner path: allow +1 memberCount as part of joining.
+          // Requires the caller's own members/{uid} doc to already exist.
+          // IMPORTANT: joinFamily() (family_repository.dart) deliberately
+          // performs the members/{uid} create as its own standalone write,
+          // committed *before* this family update runs — NOT inside one
+          // runTransaction() with it. Firestore evaluates exists()/get() in
+          // security rules against the transaction's initial read
+          // snapshot, so a same-transaction write to members/{uid} would
+          // never be visible here and this branch would always fail for a
+          // genuine new joiner (this was a real bug, fixed by splitting the
+          // writes). Still blocks any signed-in stranger from inflating
+          // memberCount on a family they never joined, since their own
+          // members/{uid} doc genuinely won't exist.
           isSignedIn()
           && exists(/databases/$(database)/documents/families/$(fid)/members/$(request.auth.uid))
           && request.resource.data.diff(resource.data).affectedKeys()

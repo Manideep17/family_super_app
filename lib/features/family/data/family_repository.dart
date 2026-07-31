@@ -208,39 +208,53 @@ class FamilyRepository {
     final memberRef = familyRef.collection('members').doc(u.uid);
     final userRef = _users.doc(u.uid);
 
-    await _db.runTransaction((tx) async {
-      final freshUser = await tx.get(userRef);
-      final existing = freshUser.data()?['familyId'];
-      if (existing is String && existing.isNotEmpty) {
-        throw StateError('You already belong to a family.');
-      }
-      final freshFamily = await tx.get(familyRef);
-      final data = freshFamily.data();
-      if (data == null) throw StateError('Family vanished.');
+    final freshUser = await userRef.get();
+    final existing = freshUser.data()?['familyId'];
+    if (existing is String && existing.isNotEmpty) {
+      throw StateError('You already belong to a family.');
+    }
+    final freshFamily = await familyRef.get();
+    if (freshFamily.data() == null) throw StateError('Family vanished.');
 
-      tx.set(memberRef, {
-        'uid': u.uid,
-        'email': u.email!.toLowerCase(),
-        'displayName': displayName.trim(),
-        'role': 'member',
-        'greeting': greeting.trim(),
-        'avatarUrl': null,
-        'joinedAt': FieldValue.serverTimestamp(),
-      });
-      tx.update(familyRef, {
-        'memberCount': FieldValue.increment(1),
-      });
-      tx.set(
-        userRef,
-        {
-          'email': u.email!.toLowerCase(),
-          'familyId': familyRef.id,
-          'displayName': displayName.trim(),
-          'updatedAt': FieldValue.serverTimestamp(),
-        },
-        SetOptions(merge: true),
-      );
+    // Deliberately NOT one Firestore transaction for the three writes below
+    // (an earlier version was). firestore.rules requires
+    // exists(families/{fid}/members/{uid}) before allowing the memberCount
+    // increment — but Firestore security rules evaluate get()/exists()
+    // against the transaction's snapshot as of its *first read*, and do
+    // NOT see writes made earlier in that same transaction. So a
+    // transaction that creates the member doc and then bumps memberCount
+    // in one atomic unit always fails that exists() check for a real new
+    // joiner (their member doc "doesn't exist yet" as far as rule
+    // evaluation is concerned) — this is exactly the permission-denied
+    // real users hit trying to join. Splitting into separate, sequential
+    // writes means step 2's rule check runs against a snapshot that
+    // genuinely includes step 1's already-committed write. Trades away
+    // all-or-nothing atomicity (a crash between steps could leave a member
+    // doc without a memberCount bump / familyId pointer), which is an
+    // acceptable, recoverable tradeoff against "joining is broken for
+    // everyone."
+    await memberRef.set({
+      'uid': u.uid,
+      'email': u.email!.toLowerCase(),
+      'displayName': displayName.trim(),
+      'role': 'member',
+      'greeting': greeting.trim(),
+      'avatarUrl': null,
+      'joinedAt': FieldValue.serverTimestamp(),
     });
+    await familyRef.update({
+      'memberCount': FieldValue.increment(1),
+      'updatedAt': FieldValue.serverTimestamp(),
+    });
+    await userRef.set(
+      {
+        'email': u.email!.toLowerCase(),
+        'familyId': familyRef.id,
+        'displayName': displayName.trim(),
+        'updatedAt': FieldValue.serverTimestamp(),
+      },
+      SetOptions(merge: true),
+    );
 
     return familyRef.id;
   }
