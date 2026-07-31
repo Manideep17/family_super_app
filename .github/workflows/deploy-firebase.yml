@@ -1,6 +1,12 @@
 # Deploys Cloud Functions + Firestore rules/indexes + Storage rules to your
-# live Firebase project. Manual only (workflow_dispatch) — this touches
-# production data, so it never runs automatically on push.
+# live Firebase project.
+#
+# Runs automatically on every push to main/master that touches functions/**,
+# firestore.rules, firestore.indexes.json, or storage.rules — so a rules or
+# Cloud Function change is live the moment it's merged, no manual "Run
+# workflow" click needed. (Still keeps workflow_dispatch too, for a manual
+# full redeploy any time.) Gated behind the same `npm test` step as before —
+# a failing backend test still blocks the deploy, on autorun or manual.
 #
 # One-time setup before the first run (all free — a service account key
 # costs nothing, this just lets GitHub authenticate as your project):
@@ -13,16 +19,20 @@
 #   3. GitHub repo -> Settings -> Secrets and variables -> Actions ->
 #      New repository secret -> name it FIREBASE_SERVICE_ACCOUNT -> paste
 #      the entire JSON file contents as the value.
-#   4. Actions tab -> "Deploy Firebase Backend" -> Run workflow.
 #
-# This is the step that turns on real push notifications, task-approval
-# points, weekly rollups, and the memories quiz — see
-# docs/AI_LOGIC_SETUP.md and docs/REVAMP_ROADMAP.md for context. After a
-# successful run, rebuild the app with --dart-define=FUNCTIONS_ENABLED=true
-# (build-apk.yml already has a checkbox for this).
+# If that secret isn't set yet, the auto-triggered run logs a clear message
+# and skips deploying (instead of failing red) — see the "Deploy" step below.
 name: Deploy Firebase Backend
 
 on:
+  push:
+    branches: [main, master]
+    paths:
+      - "functions/**"
+      - "firestore.rules"
+      - "firestore.indexes.json"
+      - "storage.rules"
+      - ".github/workflows/deploy-firebase.yml"
   workflow_dispatch:
     inputs:
       targets:
@@ -34,6 +44,8 @@ on:
 jobs:
   deploy:
     runs-on: ubuntu-latest
+    env:
+      FIREBASE_SERVICE_ACCOUNT: ${{ secrets.FIREBASE_SERVICE_ACCOUNT }}
     steps:
       - uses: actions/checkout@v4
 
@@ -50,15 +62,21 @@ jobs:
         run: npm test
 
       - name: Authenticate to Google Cloud
+        if: ${{ env.FIREBASE_SERVICE_ACCOUNT != '' }}
         uses: google-github-actions/auth@v2
         with:
           credentials_json: ${{ secrets.FIREBASE_SERVICE_ACCOUNT }}
 
       - name: Deploy
         run: |
+          if [ -z "$FIREBASE_SERVICE_ACCOUNT" ]; then
+            echo "No FIREBASE_SERVICE_ACCOUNT secret set — skipping deploy."
+            echo "Add it under Settings -> Secrets and variables -> Actions (see the comment at the top of this file), then push again or re-run this workflow."
+            exit 0
+          fi
           npm install -g firebase-tools
           firebase deploy \
-            --only "${{ inputs.targets }}" \
+            --only "${{ inputs.targets || 'functions,firestore:rules,firestore:indexes,storage' }}" \
             --project family-super-app-3bf1c \
             --non-interactive \
             --force

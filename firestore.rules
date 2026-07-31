@@ -339,7 +339,7 @@ service cloud.firestore {
           && request.auth.uid == uid
           && request.resource.data.diff(resource.data).affectedKeys()
             .hasOnly([
-              'displayName', 'greeting', 'avatarUrl',
+              'displayName', 'greeting', 'avatarUrl', 'updatedAt',
               'onesignalSubscriptionId', 'onesignalUpdatedAt',
             ]);
         allow delete: if isSignedIn() && request.auth.uid == uid;

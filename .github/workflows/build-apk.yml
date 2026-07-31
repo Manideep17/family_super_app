@@ -1,6 +1,20 @@
 # Builds a release APK when you push to main/master, or when you click "Run workflow".
 # After it finishes: Actions → this workflow → latest run → Artifacts → app-release-apk (zip with APK).
-# Manual runs: optional booleans add common AppFlags (--dart-define).
+#
+# Every build (push or manual) now enables all AppFlags by default —
+# FUNCTIONS_ENABLED, MEDIA_UPLOADS_ENABLED, AI_DIGEST_ENABLED — plus passes
+# Cloudinary/OneSignal config from repo secrets as dart-defines, so the
+# built APK has every feature switched on with no manual step. Manual runs
+# can still uncheck any of the three boxes to build with a feature off
+# (e.g. to isolate a bug), but the default is "everything on."
+#
+# NOTE: Functions-backed features (leaderboard, best moments, AI quiz,
+# account deletion, billing, referrals) only actually work once the backend
+# itself is deployed — see deploy-firebase.yml, which now also auto-deploys
+# on push. AI digest additionally needs the one-time AI Logic console setup
+# in docs/AI_LOGIC_SETUP.md, and media uploads need CLOUDINARY_CLOUD_NAME /
+# CLOUDINARY_UPLOAD_PRESET repo secrets set (Cloudinary's free tier) for
+# uploads to actually reach anywhere — the flag alone just unhides the UI.
 #
 # Release signing (needed for Google Sign-In — see docs/RELEASE_SIGNING.md):
 # without these 4 secrets, this falls back to Gradle's auto-generated debug
@@ -42,20 +56,20 @@ on:
   workflow_dispatch:
     inputs:
       functions_enabled:
-        description: Pass FUNCTIONS_ENABLED=true (Function-backed UI surfaces)
+        description: Include FUNCTIONS_ENABLED=true (Function-backed UI surfaces)
         required: false
         type: boolean
-        default: false
+        default: true
       media_uploads_enabled:
-        description: Pass MEDIA_UPLOADS_ENABLED=true (diary/avatar/vault/reel uploads — still needs Cloudinary if used)
+        description: Include MEDIA_UPLOADS_ENABLED=true (diary/avatar/vault/reel uploads — still needs Cloudinary secrets set)
         required: false
         type: boolean
-        default: false
+        default: true
       ai_digest_enabled:
-        description: Pass AI_DIGEST_ENABLED=true (Gemini weekly digest — needs AI Logic set up first, see docs/AI_LOGIC_SETUP.md)
+        description: Include AI_DIGEST_ENABLED=true (Gemini weekly digest — needs AI Logic set up first, see docs/AI_LOGIC_SETUP.md)
         required: false
         type: boolean
-        default: false
+        default: true
   push:
     branches: [main, master]
 
@@ -95,20 +109,43 @@ jobs:
           keytool -list -v -keystore android/app/upload-keystore.jks -alias "$KEY_ALIAS" -storepass "$KEYSTORE_PASSWORD" | grep -E "SHA1:|SHA256:"
 
       - name: Dependencies & APK
+        env:
+          CLOUDINARY_CLOUD_NAME: ${{ secrets.CLOUDINARY_CLOUD_NAME }}
+          CLOUDINARY_UPLOAD_PRESET: ${{ secrets.CLOUDINARY_UPLOAD_PRESET }}
+          ONESIGNAL_APP_ID: ${{ secrets.ONESIGNAL_APP_ID }}
+          PUSH_WORKER_ENDPOINT: ${{ secrets.PUSH_WORKER_ENDPOINT }}
+          PUSH_WORKER_KEY: ${{ secrets.PUSH_WORKER_KEY }}
         run: |
           flutter pub get
-          FLAGS=""
+
+          # Default every flag to ON. On a workflow_dispatch run, an
+          # explicit "false" checkbox turns that one flag back off; a plain
+          # push (the normal flow) always gets all three, matching the
+          # boolean inputs' own defaults above.
+          functions_on=true
+          media_on=true
+          ai_on=true
           if [ "${{ github.event_name }}" = "workflow_dispatch" ]; then
-            if [ "${{ inputs.functions_enabled }}" = "true" ]; then
-              FLAGS="$FLAGS --dart-define=FUNCTIONS_ENABLED=true"
-            fi
-            if [ "${{ inputs.media_uploads_enabled }}" = "true" ]; then
-              FLAGS="$FLAGS --dart-define=MEDIA_UPLOADS_ENABLED=true"
-            fi
-            if [ "${{ inputs.ai_digest_enabled }}" = "true" ]; then
-              FLAGS="$FLAGS --dart-define=AI_DIGEST_ENABLED=true"
-            fi
+            [ "${{ inputs.functions_enabled }}" = "false" ] && functions_on=false
+            [ "${{ inputs.media_uploads_enabled }}" = "false" ] && media_on=false
+            [ "${{ inputs.ai_digest_enabled }}" = "false" ] && ai_on=false
           fi
+
+          FLAGS=""
+          [ "$functions_on" = "true" ] && FLAGS="$FLAGS --dart-define=FUNCTIONS_ENABLED=true"
+          [ "$media_on" = "true" ] && FLAGS="$FLAGS --dart-define=MEDIA_UPLOADS_ENABLED=true"
+          [ "$ai_on" = "true" ] && FLAGS="$FLAGS --dart-define=AI_DIGEST_ENABLED=true"
+
+          # Cloudinary/OneSignal config — safe to pass even when the secret
+          # isn't set yet (just compiles in an empty string, so
+          # AppFlags.cloudinaryConfigured / pushBridgeConfigured stay false
+          # until the secrets are actually added).
+          FLAGS="$FLAGS --dart-define=CLOUDINARY_CLOUD_NAME=${CLOUDINARY_CLOUD_NAME}"
+          FLAGS="$FLAGS --dart-define=CLOUDINARY_UPLOAD_PRESET=${CLOUDINARY_UPLOAD_PRESET}"
+          FLAGS="$FLAGS --dart-define=ONESIGNAL_APP_ID=${ONESIGNAL_APP_ID}"
+          FLAGS="$FLAGS --dart-define=PUSH_WORKER_ENDPOINT=${PUSH_WORKER_ENDPOINT}"
+          FLAGS="$FLAGS --dart-define=PUSH_WORKER_KEY=${PUSH_WORKER_KEY}"
+
           flutter build apk --release ${FLAGS}
 
       - uses: actions/upload-artifact@v4
