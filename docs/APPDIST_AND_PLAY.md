@@ -4,14 +4,25 @@
 
 ## Firebase App Distribution (recommended for private beta)
 
+Every push to `main` already builds and auto-distributes via
+`.github/workflows/build-apk.yml` — no manual step needed once a tester
+group exists:
+
 1. **Firebase Console** → your project → **App Distribution** → ensure the Android app `com.family.superapp` is registered.
-2. **Tester groups** (e.g. `beta-families`):
+2. **Create a tester group** (e.g. `beta-testers`):
    - App Distribution → **Testers & Groups** → create a group → add emails.
-   - Reuse the group on every upload so you do not retype addresses.
-3. **Upload from CI or your machine** using [`scripts/distribute_android_app_distribution.sh`](../scripts/distribute_android_app_distribution.sh):
+   - Add/remove people here any time — no code or CI change needed.
+3. **Point CI at that group**: GitHub repo → Settings → Secrets and
+   variables → Actions → **Variables** tab (not Secrets — a group name
+   isn't sensitive) → New repository variable →
+   `APP_DISTRIBUTION_GROUP` = the exact group name from step 2.
+   Every build after that goes to the whole group automatically. Until
+   this variable is set, CI falls back to the single original tester email.
+4. Manual upload from your machine still works too, via
+   [`scripts/distribute_android_app_distribution.sh`](../scripts/distribute_android_app_distribution.sh):
    - By email: `TESTERS="a@x.com,b@y.com" RELEASE_NOTES="Beta 3" ./scripts/distribute_android_app_distribution.sh`
-   - By group: `GROUPS="beta-families" RELEASE_NOTES="Beta 3" ./scripts/distribute_android_app_distribution.sh`
-4. Tell testers to use the **email invite** or the **Firebase App Distribution tester app** — avoid sharing expiring CLI download URLs publicly.
+   - By group: `GROUPS="beta-testers" RELEASE_NOTES="Beta 3" ./scripts/distribute_android_app_distribution.sh`
+5. Tell testers to use the **email invite** or the **Firebase App Distribution tester app** — avoid sharing expiring CLI download URLs publicly.
 
 ## Google Play closed testing (optional)
 
