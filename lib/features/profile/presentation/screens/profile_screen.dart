@@ -59,8 +59,20 @@ class ProfileScreen extends ConsumerWidget {
         }
       } catch (e) {
         if (context.mounted) {
-          ScaffoldMessenger.of(context)
-              .showSnackBar(SnackBar(content: Text('$e')));
+          final raw = '$e';
+          // firebase_storage's own "unauthorized" text doesn't say *why* —
+          // almost always either storage.rules hasn't been deployed yet
+          // (see deploy-firebase.yml) or the file genuinely failed the
+          // image/size check. Surface both possibilities instead of
+          // leaving just the bare SDK message.
+          final message = raw.contains('unauthorized')
+              ? 'Upload was rejected by Storage rules. If this keeps '
+                  'happening, storage.rules may not be deployed yet — check '
+                  'the "Deploy Firebase Backend" GitHub Action. ($raw)'
+              : raw;
+          ScaffoldMessenger.of(context).showSnackBar(
+            SnackBar(content: Text(message)),
+          );
         }
       }
     }
