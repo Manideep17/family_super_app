@@ -160,21 +160,20 @@ jobs:
           # Set this as a repo Variable (Settings -> Secrets and variables ->
           # Actions -> Variables tab, NOT Secrets — it's not sensitive) once
           # you've created a tester group of the same name in Firebase
-          # Console -> App Distribution -> Testers & Groups. Until then this
-          # falls back to the one email that was always hardcoded here.
+          # Console -> App Distribution -> Testers & Groups. Adds to (not
+          # replaces) the individual emails below.
           APP_DISTRIBUTION_GROUP: ${{ vars.APP_DISTRIBUTION_GROUP }}
         run: |
           npm install -g firebase-tools
+          # Individual testers, always invited regardless of the group above.
+          TESTERS="manideepbiswas21@gmail.com,ritikajaiswar18@gmail.com"
+          ARGS=(--testers "$TESTERS")
           if [ -n "$APP_DISTRIBUTION_GROUP" ]; then
-            TARGET_FLAG="--groups"
-            TARGET_VALUE="$APP_DISTRIBUTION_GROUP"
-          else
-            TARGET_FLAG="--testers"
-            TARGET_VALUE="manideepbiswas21@gmail.com"
+            ARGS+=(--groups "$APP_DISTRIBUTION_GROUP")
           fi
           firebase appdistribution:distribute \
             build/app/outputs/flutter-apk/app-release.apk \
             --app 1:679019957650:android:8c6cb7576949211947c54b \
             --project family-super-app-3bf1c \
-            "$TARGET_FLAG" "$TARGET_VALUE" \
+            "${ARGS[@]}" \
             --release-notes "Auto build from ${{ github.sha }}"
