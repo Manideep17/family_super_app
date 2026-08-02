@@ -166,7 +166,7 @@ jobs:
         run: |
           npm install -g firebase-tools
           # Individual testers, always invited regardless of the group above.
-          TESTERS="manideepbiswas21@gmail.com,ritikajaiswar18@gmail.com"
+          TESTERS="manideepbiswas21@gmail.com,ritikajaiswar18@gmail.com,crystalvilla532@gmail.com"
           ARGS=(--testers "$TESTERS")
           if [ -n "$APP_DISTRIBUTION_GROUP" ]; then
             ARGS+=(--groups "$APP_DISTRIBUTION_GROUP")
