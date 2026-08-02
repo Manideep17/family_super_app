@@ -1,0 +1,98 @@
+# Builds the release AAB (Android App Bundle) that Play Console actually
+# requires for a Play Store submission — build-apk.yml only produces an
+# APK, which is fine for sideloaded testers but Play Console needs an AAB.
+#
+# Manual only (Actions -> Build App Bundle (AAB) -> Run workflow): unlike
+# build-apk.yml this isn't needed on every commit, only when you're about to
+# upload a new version to Play Console.
+#
+# Reuses the same release-signing secrets as build-apk.yml (see that file's
+# header comment for the one-time ANDROID_KEYSTORE_* secret setup — without
+# them this falls back to Gradle's debug keystore, which Play Console will
+# reject for a real submission) and the same AppFlags defaults (everything
+# on) plus OneSignal config from repo secrets.
+#
+# After it finishes: Actions -> this workflow -> latest run -> Artifacts ->
+# app-release-aab. Upload that .aab directly to Play Console -> your app ->
+# Release -> the testing track you're using.
+name: Build App Bundle (AAB)
+
+on:
+  workflow_dispatch:
+    inputs:
+      functions_enabled:
+        description: Include FUNCTIONS_ENABLED=true (Function-backed UI surfaces)
+        required: false
+        type: boolean
+        default: true
+      media_uploads_enabled:
+        description: Include MEDIA_UPLOADS_ENABLED=true (diary/avatar/vault/reel uploads to Firebase Storage)
+        required: false
+        type: boolean
+        default: true
+      ai_digest_enabled:
+        description: Include AI_DIGEST_ENABLED=true (Gemini weekly digest — needs AI Logic set up first, see docs/AI_LOGIC_SETUP.md)
+        required: false
+        type: boolean
+        default: true
+
+jobs:
+  android:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: subosito/flutter-action@v2
+        with:
+          channel: stable
+          cache: true
+
+      - name: Configure release signing
+        env:
+          KEYSTORE_BASE64: ${{ secrets.ANDROID_KEYSTORE_BASE64 }}
+          KEYSTORE_PASSWORD: ${{ secrets.ANDROID_KEYSTORE_PASSWORD }}
+          KEY_ALIAS: ${{ secrets.ANDROID_KEY_ALIAS }}
+          KEY_PASSWORD: ${{ secrets.ANDROID_KEY_PASSWORD }}
+        run: |
+          if [ -z "$KEYSTORE_BASE64" ]; then
+            echo "No ANDROID_KEYSTORE_BASE64 secret set — building with the Gradle debug-keystore fallback."
+            echo "Play Console will reject a debug-signed bundle for a real submission — see build-apk.yml's header comment for the one-time keystore secret setup."
+            exit 0
+          fi
+          echo "$KEYSTORE_BASE64" | base64 -d > android/app/upload-keystore.jks
+          cat > android/key.properties <<PROPS
+          storePassword=$KEYSTORE_PASSWORD
+          keyPassword=$KEY_PASSWORD
+          keyAlias=$KEY_ALIAS
+          storeFile=upload-keystore.jks
+          PROPS
+
+      - name: Dependencies & AAB
+        env:
+          ONESIGNAL_APP_ID: ${{ secrets.ONESIGNAL_APP_ID }}
+          PUSH_WORKER_ENDPOINT: ${{ secrets.PUSH_WORKER_ENDPOINT }}
+          PUSH_WORKER_KEY: ${{ secrets.PUSH_WORKER_KEY }}
+        run: |
+          flutter pub get
+
+          functions_on=true
+          media_on=true
+          ai_on=true
+          [ "${{ inputs.functions_enabled }}" = "false" ] && functions_on=false
+          [ "${{ inputs.media_uploads_enabled }}" = "false" ] && media_on=false
+          [ "${{ inputs.ai_digest_enabled }}" = "false" ] && ai_on=false
+
+          FLAGS=""
+          [ "$functions_on" = "true" ] && FLAGS="$FLAGS --dart-define=FUNCTIONS_ENABLED=true"
+          [ "$media_on" = "true" ] && FLAGS="$FLAGS --dart-define=MEDIA_UPLOADS_ENABLED=true"
+          [ "$ai_on" = "true" ] && FLAGS="$FLAGS --dart-define=AI_DIGEST_ENABLED=true"
+          FLAGS="$FLAGS --dart-define=ONESIGNAL_APP_ID=${ONESIGNAL_APP_ID}"
+          FLAGS="$FLAGS --dart-define=PUSH_WORKER_ENDPOINT=${PUSH_WORKER_ENDPOINT}"
+          FLAGS="$FLAGS --dart-define=PUSH_WORKER_KEY=${PUSH_WORKER_KEY}"
+
+          flutter build appbundle --release ${FLAGS}
+
+      - uses: actions/upload-artifact@v4
+        with:
+          name: app-release-aab
+          path: build/app/outputs/bundle/release/app-release.aab
